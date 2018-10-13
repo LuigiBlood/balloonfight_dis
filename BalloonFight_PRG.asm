@@ -8,11 +8,15 @@ arch nes.cpu
 // $0000 = PPUCTRL Shadow
 // $0001 = PPUMASK Shadow
 // $0002 = Video Frame Processed Flag
-// $0003-$0007 = Player 1 Score
-// $0008-$000C = Player 2 Score
-// $000D-$0011 = Top Score
-// $0012 = ???
+// $0003-$0007 = Current Player 1 Score
+// $0008-$000C = Current Player 2 Score
+// $000D-$0011 = Current Top Score
+// $0012 = Used for Division and Balloon Trip Ranking
+// $0013 = ???
+// $0014 = ???
+// $0015 = ???
 // $0016 = Game Mode (0 = Balloon Fight, 1 = Balloon Trip)
+
 // $0019 = Frame Counter
 
 // $001D = Loading Pointer
@@ -27,13 +31,18 @@ arch nes.cpu
 // $003B = Current Level Header
 // $003C = Current Phase
 // $003D = ???
-// $003E = ???
+// $003E = Score related (Highest Score?) [Switches between 0,1,2]
 // $003F = Main Menu Cursor
 // $0040 = 2 Player Flag
 // $0041 = Player 1 Lives
 // $0042 = Player 2 Lives
-// $0043 = ???
-
+// $0043 = Division Dividend & Modulo Result
+//		   1st Digit score to add
+// $0044 = 2nd Digit score to add
+// $0045 = 3rd Digit score to add
+// $0046 = Status Bar Update Flag
+// $0047 = 4th Digit score to add
+// $0048 = 5th Digit score to add
 // $0049 = Balloon Trip Rank 0x
 // $004A = Balloon Trip Rank x0
 
@@ -136,9 +145,12 @@ arch nes.cpu
 // $061D = Controller 2 Pressed Buttons
 // $061E = Controller 1 Held Buttons
 // $061F = Controller 2 Held Buttons
-// $0629 = Default 1-Player Game Top Score
-// $062E = Default 2-Player Game Top Score
-// $0633 = Default Balloon Trip Top Score
+// $0629 = Highest 1-Player Game Top Score
+// $062E = Highest 2-Player Game Top Score
+// $0633 = Highest Balloon Trip Top Score
+
+// $0700-$07E4 = Balloon Trip Rank 01 to 46 Scores (5 bytes each)
+//				 Rank 47 = Score 000000
 
 // $07E8 = Balloon Trip Music Flag
 // $07F0 = Audio related?
@@ -200,9 +212,9 @@ lc037:
 	sta $15		// |
 lc043:
 	lda #$32	// |
-	jsr ld6de	// |
-	lda #$00	// |
-	sta $46		// |
+	jsr ld6de_scoreadd	// |
+	lda #$00	// \
+	sta $46		// / Clear Status Bar Update Flag
 	jsr lc579	// |
 	dec $15		// |
 	bne lc043	// /
@@ -222,7 +234,7 @@ lc060:
 	bpl lc060	// /
 
 	lda #$00
-	jsr ld6de
+	jsr ld6de_scoreadd
 
 	ldx #$02	// \
 lc06e:
@@ -237,7 +249,7 @@ lc077:
 	sta $00		// / Enable NMI at V-Blank, BG Pattern Table at $1000
 	jmp lf1d4
 
-lc082:	//"HAL" string
+lc082:	//"HAL" string (in reverse)
 db $48,$41,$4c
 
 lc085:	// Default High Scores
@@ -323,16 +335,16 @@ lc0f7_brk:
 
 lc0fa_disablenmi:
 	lda $00		// \
-	and #$7f	// |
+	and #$7f	// / Disable NMI
 lc0fe:
-	sta $2000	// | Disable NMI
-	sta $00		// |
+	sta $2000	// \
+	sta $00		// | Update PPUCTRL
 	rts			// /
 
 lc104_enablenmi:
-	lda $00
-	ora #$80
-	bne lc0fe	// Enable NMI
+	lda $00		// \
+	ora #$80	// | Enable NMI
+	bne lc0fe	// /
 
 lc10a_clearppumask:
 	lda #$00	// Clear PPUMASK
@@ -344,7 +356,7 @@ lc10c_writeppumask:
 	rts
 
 lc115:
-	lda $01		// Write PPUMASK Shadow
+	lda $01		// Write PPUMASK Shadow to PPUMASK
 	bne lc10c_writeppumask
 lc119:
 	jsr lc154
@@ -362,19 +374,19 @@ lc11e:
 
 lc12d:
 	lda #$57
-	ldy #0
+	ldy #$00
 lc131:
 	sta $21
 	sty $22
 	txa
 	pha
-	ldy #2
+	ldy #$02
 	lda ($21),y
 	clc
-	adc #3
+	adc #$03
 	sta $12
 	ldx $53
-	ldy #0
+	ldy #$00
 lc144:
 	lda ($21),y
 	sta $0300,x
@@ -466,7 +478,7 @@ lc1c5:
 	lda #$20
 	sta $f2
 	jsr lc527
-	jsr lc539
+	jsr lc539_rankupdate
 	lda #$ff
 	sta $cd
 	lda #$ad
@@ -572,7 +584,7 @@ lc289:
 	lda #0
 	sta $3e
 	lda #1
-	jsr ld6de
+	jsr ld6de_scoreadd
 	inc $c9
 	lda $c9
 	and #$1f
@@ -611,7 +623,7 @@ lc2d2:
 	txa
 	pha
 	lda $0559
-	jsr ld6de
+	jsr ld6de_scoreadd
 	pla
 	tax
 lc2ef:
@@ -668,7 +680,7 @@ lc32d:
 	bcc lc36f
 	inc $47
 	lda #0
-	jsr ld6de
+	jsr ld6de_scoreadd
 	dec $47
 	lda #$10
 	sta $f2
@@ -753,49 +765,49 @@ lc527:
 	rts
 //-----------------------
 
-lc539:
-	lda #$00
-	sta $12
+lc539_rankupdate:
+	lda #$00	// \ Set Balloon Trip Rank 01 (00 + 1)
+	sta $12		// /
 lc53d:
-	lda $12
-	asl
-	asl
-	adc $12
-	sta $1d
-	lda #$07
-	sta $1e
-	ldy #$04
+	lda $12		// \
+	asl			// | 
+	asl			// | Setup Pointer to
+	adc $12		// | 0700 + (Rank)*5
+	sta $1d		// |
+	lda #$07	// |
+	sta $1e		// /
+	ldy #$04	// \
 lc54b:
-	lda ($1d),y
-	cmp $0003,y
-	bcc lc563
-	bne lc559
-	dey
-	bpl lc54b
-	bmi lc563
+	lda ($1d),y	// | Check each digit
+	cmp $0003,y	// | If P1 Score Digit < Rank Score
+	bcc lc563	// | then stop
+	bne lc559	// | If >= then check next Rank Score
+	dey			// |
+	bpl lc54b	// / Else check next digit
+	bmi lc563	// When done, update current Rank
 lc559:
-	inc $12
-	lda $12
-	cmp #$32
-	bne lc53d
-	dec $12
+	inc $12		// \
+	lda $12		// | If (Rank+1) != 50 (!)
+	cmp #$32	// | then check the next rank
+	bne lc53d	// | else update current rank
+	dec $12		// /
 lc563:
-	inc $12
-	lda $12
-	pha
-	sta $43
-	ldy #$0a
-	jsr ld77c
-	sta $4a
-	lda $43
-	sta $49
-	pla
-	sta $12
+	inc $12				// \
+	lda $12				// |
+	pha					// | Update Current Rank variable
+	sta $43				// |
+	ldy #$0a			// |
+	jsr ld77c_divide	// | (Rank+1) / 10
+	sta $4a				// | Write second digit
+	lda $43				// |
+	sta $49				// | Write first digit (modulo)
+	pla					// |
+	sta $12				// /
 	rts
 //-----------------------
 
 lc579:
-	jsr lc539
+	jsr lc539_rankupdate
 	dec $12
 	lda #$31
 	sec
@@ -2280,7 +2292,7 @@ ld0a8:
 	lda $40
 	sta $3e
 ld0c0:
-	jsr ld6dc
+	jsr ld6dc_scoreupdate
 	dec $3e
 	bpl ld0c0
 	lda #1
@@ -2450,7 +2462,7 @@ ld238:
 	txa
 	pha
 	lda #$0a
-	jsr ld6de
+	jsr ld6de_scoreadd
 	pla
 	tax
 ld243:
@@ -2676,6 +2688,7 @@ ld3e1:
 	jsr ld3ed
 	jsr lc104_enablenmi
 	jmp lc115
+
 ld3ed:
 	ldx #$22
 ld3ef:
@@ -3031,14 +3044,14 @@ db $be,$20,$fa,$20,$ae,$21,$46,$21,$9a,$21,$d2,$20,$3d,$21,$2b
 db $22,$b0,$20,$b6,$21,$ac,$20,$b3,$20,$db,$20,$f6,$20,$2c,$21
 db $e7,$20,$62,$21,$e4,$21,$4e,$21
 
-ld6dc:
-	lda #$00
-ld6de:
-	sta $43
-	lda $3a
-	beq ld6e5
+ld6dc_scoreupdate:
+	lda #$00	// Only Update Score
+ld6de_scoreadd:
+	sta $43		// Score to Add
+	lda $3a		// \ If not Demo Play
+	beq ld6e5	// | then go to ld6e5
 ld6e4:
-	rts
+	rts			// / Else return
 
 ld6e5:
 	ldx $3e		// \ If [$3E] >= 2
@@ -3046,115 +3059,111 @@ ld6e5:
 	bcs ld6e4	// /
 	lda $41,x	// \ If Player X has no lives
 	bmi ld6e4	// / Then return
-	ldy #$64
-	jsr ld77c
+	ldy #$64			// \ Process Score to add up
+	jsr ld77c_divide	// | Score to add / 100
+	clc					// |
+	adc $48				// |
+	sta $45				// |
+	ldy #$0a			// |
+	jsr ld77c_divide	// | Modulo Result / 10
+	sta $44				// /
+	ldx $3f		// \ Selected Game Mode?
+	lda ld779,x	// |
+	sta $21		// | Setup Pointer to Default Top Score
+	lda #$06	// | [$21] = 06XX
+	sta $22		// /
+	lda $3e		// \
+	asl			// | Select Score ???
+	asl			// | X = [$3E] * 5
+	ora $3e		// |
+	tax			// /
 	clc
-	adc $48
-	sta $45
-	ldy #$0a
-	jsr ld77c
-	sta $44
-	ldx $3f
-	lda ld779,x
-	sta $21
-	lda #$06
-	sta $22
-	lda $3e
-	asl
-	asl
-	ora $3e
-	tax
-	clc
-	lda $03,x
-	adc $43
-	jsr ld78f
-	sta $03,x
-	lda $04,x
-	adc $44
-	jsr ld78f
-	sta $04,x
-	lda $05,x
-	adc $45
-	jsr ld78f
-	sta $05,x
-	lda $06,x
-	adc $47
-	jsr ld78f
-	sta $06,x
-	lda $07,x
-	adc #0
-	jsr ld78f
-	sta $07,x
-	inx
-	inx
-	inx
-	inx
-	ldy #4
+	lda $03,x	// \ Add Score 0000X
+	adc $43		// | Lock Score between 0 and 9
+	jsr ld78f	// | First Digit
+	sta $03,x	// /
+	lda $04,x	// \ Add Score 000X0
+	adc $44		// | Lock Score between 0 and 9
+	jsr ld78f	// | Second Digit
+	sta $04,x	// /
+	lda $05,x	// \ Add Score 00X00
+	adc $45		// | Lock Score between 0 and 9
+	jsr ld78f	// | Third Digit
+	sta $05,x	// /
+	lda $06,x	// \ Add Score 0X000
+	adc $47		// | Lock Score between 0 and 9
+	jsr ld78f	// | Fourth Digit
+	sta $06,x	// /
+	lda $07,x	// \ Add Score X0000
+	adc #$00	// | Lock Score between 0 and 9
+	jsr ld78f	// | Fifth Digit
+	sta $07,x	// /
+	inx			// \
+	inx			// | Goes to last digit
+	inx			// |
+	inx			// /
+	ldy #$04	// \ From highest digit
 ld746:
-	lda $03,x
-	cmp ($21),y
-	bcc ld765
-	bne ld752
-	dex
-	dey
-	bpl ld746
+	lda $03,x	// | If this score digit is
+	cmp ($21),y	// | under Highest Top Score Digit
+	bcc ld765	// | then Top Score was not beaten
+	bne ld752	// | so go to ld765 (stop checking)
+	dex			// | if not equal then Top score is beaten
+	dey			// | if equal then check the lower digit
+	bpl ld746	// / until the last.
 ld752:
-	ldy #0
-	lda $3e
-	asl
-	asl
-	ora $3e
-	tax
+	ldy #$00
+	lda $3e		// \
+	asl			// | Select Score ???
+	asl			// | X = [$3E] * 5
+	ora $3e		// |
+	tax			// /
 ld75b:
-	lda $03,x
-	sta ($21),y
-	inx
-	iny
-	cpy #5
-	bne ld75b
+	lda $03,x	// \
+	sta ($21),y	// | Copy Current Score
+	inx			// | to Highest Top Score
+	iny			// |
+	cpy #$05	// |
+	bne ld75b	// /
 ld765:
-	ldy #4
+	ldy #$04	// \
 ld767:
-	lda ($21),y
-	sta $000d,y
-	dey
-	bpl ld767
-	inc $46
-	lda $16
-	beq ld778
-	jsr lc539
+	lda ($21),y	// | Copy Highest Top Score
+	sta $000d,y	// | back to Current Top Score
+	dey			// | 
+	bpl ld767	// /
+	inc $46		// Status Bar Update Flag
+	lda $16					// \
+	beq ld778				// | If Balloon Trip Mode then
+	jsr lc539_rankupdate	// / Ranking Update
 ld778:
 	rts
-//-----------------------
 
 ld779:
 db $29,$2e,$33
 
-ld77c:
+ld77c_divide:	// Divide [$43] by Y
 	sty $12
 	ldx #$ff
 	lda $43
 ld782:
-	sec
-	sbc $12
-	inx
-	bcs ld782
+	sec			// \
+	sbc $12		// | Subtract Y 
+	inx			// | X + 1
+	bcs ld782	// / If it doesn't overflow then continue
 	clc
-	adc $12
-	sta $43
-	txa
+	adc $12		// Add Y value again to cancel overflow
+	sta $43		// [$43] = Reminder
+	txa			// A and X = Result
 	rts
-//-----------------------
 
 ld78f:
-	cmp #$0a
-	bcs ld794
-	rts
-//-----------------------
-
+	cmp #$0a	// \ Check if Score Digit >= 0x0A
+	bcs ld794	// | Then ...
+	rts			// / Else return
 ld794:
-	sec
-	sbc #$0a
+	sec			// \ Then subtract 0x0A
+	sbc #$0a	// / from digit
 	rts
 //-----------------------
 
@@ -3291,7 +3300,7 @@ ld871:
 	sta $12
 	stx $13
 	sty $14
-	ldx #1
+	ldx #$01
 ld879:
 	lda $061a,x
 	bmi ld88c
@@ -4026,12 +4035,12 @@ le696:
 	jsr lecba
 	jmp le6e2
 le6a4:
-	cpx #2
+	cpx #$02
 	bcc le6b8
-	cmp #1
+	cmp #$01
 	bne le6b8
 	lda $7f,x
-	cmp #2
+	cmp #$02
 	bcs le6b8
 	lda $f1
 	ora #$20
@@ -4039,13 +4048,13 @@ le6a4:
 le6b8:
 	dec $043f,x
 	bne le6d9
-	lda #3
+	lda #$03
 	sta $043f,x
-	cpx #2
+	cpx #$02
 	bcs le6ce
 	dec $bf,x
 	bne le6ce
-	lda #0
+	lda #$00
 	sta $bd,x
 le6ce:
 	jsr lea18
@@ -4516,35 +4525,35 @@ lea17:
 //-----------------------
 
 lea18:
-	cpx #2
+	cpx #$02
 	bcs lea2c
 	lda $bd,x
 	bne lea44
 	lda $7f,x
-	cmp #1
+	cmp #$01
 	beq lea3e
-	cmp #3
+	cmp #$03
 	bne lea44
 	beq lea3e
 lea2c:
 	lda $7f,x
-	cmp #1
+	cmp #$01
 	beq lea3e
-	cmp #3
+	cmp #$03
 	bcc lea44
 	lda $19
-	and #3
+	and #$03
 	bne lea47
 	beq lea44
 lea3e:
 	lda $19
-	and #7
+	and #$07
 	bne lea47
 lea44:
 	inc $0436,x
 lea47:
 	lda $0436,x
-	and #3
+	and #$03
 	sta $0436,x
 	bne lea57
 	lda $7f,x
@@ -4925,7 +4934,7 @@ lecdf:
 	sta $f0
 	lda #$32
 	sty $3e
-	jsr ld6de
+	jsr ld6de_scoreadd
 	lda #1
 	ldx $3e
 	jsr ld871
@@ -5377,7 +5386,7 @@ lf023:
 	lda $14
 	jsr ld871
 	pla
-	jsr ld6de
+	jsr ld6de_scoreadd
 	pla
 	tax
 	pla
@@ -5631,7 +5640,7 @@ lf1d9:
 	bpl lf1d9	// /
 	sta $3e
 	inc $41
-	jsr ld6de
+	jsr ld6de_scoreadd
 	lda #$0f	// \ Enable Sound Channels
 	sta $4015	// /
 	lda #$01	// \ Stop All Sounds
@@ -5910,7 +5919,7 @@ lf3d4:
 	ldy #$0a
 	lda $3c
 	sta $43
-	jsr ld77c
+	jsr ld77c_divide
 	sta $60
 	lda $43
 	sta $61

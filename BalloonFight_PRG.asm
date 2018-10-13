@@ -11,10 +11,10 @@ arch nes.cpu
 // $0003-$0007 = Current Player 1 Score
 // $0008-$000C = Current Player 2 Score
 // $000D-$0011 = Current Top Score
-// $0012 = Used for Division and Balloon Trip Ranking
-// $0013 = ???
-// $0014 = ???
-// $0015 = ???
+// $0012 = (Temp) Used for Division, Balloon Trip Ranking, Player Y
+// $0013 = (Temp?)
+// $0014 = (Temp?)
+// $0015 = (Temp?) Player X, Balloon Trip Ranking Scores
 // $0016 = Game Mode (0 = Balloon Fight, 1 = Balloon Trip)
 
 // $0019 = Frame Counter
@@ -31,7 +31,7 @@ arch nes.cpu
 // $003B = Current Level Header
 // $003C = Current Phase
 // $003D = ???
-// $003E = Score related (Highest Score?) [Switches between 0,1,2]
+// $003E = Score to Update
 // $003F = Main Menu Cursor
 // $0040 = 2 Player Flag
 // $0041 = Player 1 Lives
@@ -151,6 +151,7 @@ arch nes.cpu
 
 // $0700-$07E4 = Balloon Trip Rank 01 to 46 Scores (5 bytes each)
 //				 Rank 47 = Score 000000
+//				 BUG, still thinks there are 50 ranks and overlaps the variables.
 
 // $07E8 = Balloon Trip Music Flag
 // $07F0 = Audio related?
@@ -208,16 +209,16 @@ lc037:
 	inx			// |
 	bne lc037	// /
 
-	lda #$32	// \
-	sta $15		// |
+	lda #$32					// \
+	sta $15						// | - Initialize Balloon Trip Ranking Scores -
 lc043:
-	lda #$32	// |
-	jsr ld6de_scoreadd	// |
-	lda #$00	// \
-	sta $46		// / Clear Status Bar Update Flag
-	jsr lc579	// |
-	dec $15		// |
-	bne lc043	// /
+	lda #$32					// | Add +50 to Score
+	jsr ld6de_scoreadd			// | and update
+	lda #$00					// |
+	sta $46						// | Clear Status Bar Update Flag
+	jsr lc579_rankscoreupdate	// | Update Balloon Trip Rank 01 to 50 Scores
+	dec $15						// | with multiples of 50
+	bne lc043					// /
 
 	ldx #$0e	// \
 lc055:
@@ -233,8 +234,8 @@ lc060:
 	dex			// |
 	bpl lc060	// /
 
-	lda #$00
-	jsr ld6de_scoreadd
+	lda #$00			// \
+	jsr ld6de_scoreadd	// / Update Score
 
 	ldx #$02	// \
 lc06e:
@@ -247,7 +248,7 @@ lc077:
 	sta $01		// / Enable Background and Sprites
 	lda #$90	// \ PPUCTRL Shadow
 	sta $00		// / Enable NMI at V-Blank, BG Pattern Table at $1000
-	jmp lf1d4
+	jmp lf1d4	// Start
 
 lc082:	//"HAL" string (in reverse)
 db $48,$41,$4c
@@ -716,7 +717,7 @@ lc378:
 	bmi lc3a1
 	jmp lc209
 lc3a1:
-	jsr lc579
+	jsr lc579_rankscoreupdate
 	lda #1
 	sta $f0
 	jsr lf465_clearframeflag
@@ -806,45 +807,45 @@ lc563:
 	rts
 //-----------------------
 
-lc579:
-	jsr lc539_rankupdate
-	dec $12
-	lda #$31
-	sec
-	sbc $12
-	sta $13
-	asl
-	asl
-	adc $13
-	tay
-	lda $12
-	asl
-	asl
-	adc $12
-	sta $1d
-	clc
-	adc #5
-	sta $1f
-	lda #7
-	sta $1e
-	sta $20
-	tya
-	beq lc5ac
-	dey
+lc579_rankscoreupdate:
+	jsr lc539_rankupdate	// Update Balloon Trip Rank
+	dec $12					// \
+	lda #$31				// | A = (Rank - 49)
+	sec						// |
+	sbc $12					// /
+	sta $13		// \
+	asl			// |
+	asl			// | Y = A * 5
+	adc $13		// |
+	tay			// /
+	lda $12		// \
+	asl			// |
+	asl			// | [$1D] = Pointer to Score Rank
+	adc $12		// |
+	sta $1d		// |
+	clc			// |
+	adc #$05	// |
+	sta $1f		// | [$1F] = Pointer to Score Rank+1
+	lda #$07	// |
+	sta $1e		// |
+	sta $20		// /
+	tya			// \ If Rank == 49 then
+	beq lc5ac	// / only update one rank score.
+	dey			// \
 lc5a1:
-	lda ($1d),y
-	sta ($1f),y
-	dey
-	bne lc5a1
-	lda ($1d),y
-	sta ($1f),y
+	lda ($1d),y	// | Shift Balloon Trip
+	sta ($1f),y	// | Score Ranking
+	dey			// | by one rank above
+	bne lc5a1	// |
+	lda ($1d),y	// |
+	sta ($1f),y	// /
 lc5ac:
-	ldy #4
+	ldy #$04	// \
 lc5ae:
-	lda $0003,y
-	sta ($1d),y
-	dey
-	bpl lc5ae
+	lda $0003,y	// | Copy current score
+	sta ($1d),y	// | to current Score Rank
+	dey			// |
+	bpl lc5ae	// /
 	rts
 //-----------------------
 

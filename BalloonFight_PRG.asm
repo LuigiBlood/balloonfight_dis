@@ -19,6 +19,9 @@ arch nes.cpu
 
 // $0019 = Frame Counter
 
+// $001B = ?
+// $001C = ?
+
 // $001D = Loading Pointer
 // $001F = Graphics/Enemy Data Pointer
 // $0021 = Top Score Pointer
@@ -30,14 +33,14 @@ arch nes.cpu
 // $003A = Demo Flag
 // $003B = Current Level Header
 // $003C = Current Phase
-// $003D = ???
+// $003D = Phase Number Display Time
 // $003E = Score to Update
 // $003F = Main Menu Cursor
 // $0040 = 2 Player Flag
 // $0041 = Player 1 Lives
 // $0042 = Player 2 Lives
 // $0043 = Division Dividend & Modulo Result
-//		   1st Digit score to add
+//		 & 1st Digit score to add
 // $0044 = 2nd Digit score to add
 // $0045 = 3rd Digit score to add
 // $0046 = Status Bar Update Flag
@@ -60,14 +63,27 @@ arch nes.cpu
 // $0054 = Cloud/Flipper X coordinate used for rendering
 // $0055 = Cloud/Flipper Y coordinate used for rendering
 
+// $0057 = ?
+
+// $005A-$0079 = Palette?
+
 // $0081-$0086 = Enemies Status
+// $0087 = Fish?
 
 // $0088 = Player 1 Balloons
 // $0089 = Player 2 Balloons
 // $008A-$008F = Enemies Balloons
+// $0090 = Fish?
 
+// $0091 = Player 1 X Position
+// $0092 = Player 2 X Position
 // $0093 = Enemies X Positions
+// $0099 = Fish X Position
+
+// $009A = Player 1 Y Position
+// $009B = Player 2 Y Position
 // $009C = Enemies Y Positions
+// $00A2 = Fish Y Position
 
 // $00A3 = Amount of Clouds
 // $00A4 = Current Cloud ID?
@@ -78,6 +94,10 @@ arch nes.cpu
 // $00B2 = Cloud related
 // $00B5 = Cloud related
 
+// $00B8 = ?
+// $00BA = ?
+
+// $00BB = Fish?
 // $00BD = Player 1 Invincibility Flag
 // $00BE = Player 2 Invincibility Flag
 // $00BF = Player 1 Invincibility Time
@@ -86,8 +106,15 @@ arch nes.cpu
 // $00C2 = Player 2 Freeze Flag
 // $00C3 = Player 1 Respawn Delay
 // $00C4 = Player 2 Respawn Delay
+// $00C5 = ???
+// $00C6 = ???
+// $00C7 = ???
 // $00C8 = Phase Type (00 = Regular, 01 = Bonus)
+
 // $00CD = Amount of Platforms
+
+// $00CE = Unused
+// $00CF = Unused
 
 // Sound:
 // $00D0 = ?
@@ -119,13 +146,27 @@ arch nes.cpu
 // $00F6 = Currently Playing Music/Jingle
 // $00F7 = 
 
+// $0100-$01FF = Stack
 // $0200-$02FF = OAM Buffer
 // $0300-$03FF = PPU Upload Buffer
 //					(16-bit PPU Address,
 //					 8-bit Size,
 //					 Data, and repeat)
 
+// $0451 = Player 1 Type
+// $0452 = Player 2 Type
 // $0453 = Enemies Type
+// $0459 = Fish?
+
+// $0488 = ???
+// $048B = Fish?
+// $048C = Fish?
+// $048E = Fish?
+// $048F = Fish?
+
+// $0530 = ?
+
+// $0544 = ?
 
 // $0558 = Bonus Phase Intensity Level
 // $0559 = Bonus Phase x00 points per balloon
@@ -141,6 +182,11 @@ arch nes.cpu
 // $05DC = Flipper Y positions
 // $05FA = Flippers Type
 
+// $0618 = ?
+// $0619 = ?
+// $061A = ?
+// $061B = ?
+
 // $061C = Controller 1 Pressed Buttons
 // $061D = Controller 2 Pressed Buttons
 // $061E = Controller 1 Held Buttons
@@ -149,15 +195,14 @@ arch nes.cpu
 // $062E = Highest 2-Player Game Top Score
 // $0633 = Highest Balloon Trip Top Score
 
-// $0700-$07E4 = Balloon Trip Rank 01 to 46 Scores (5 bytes each)
+// $0700-$07F9 = Balloon Trip Rank 01 to 50 Scores (5 bytes each)
 //				 Rank 47 = Score 000000
-//				 BUG, still thinks there are 50 ranks and overlaps the variables.
 
 // $07E8 = Balloon Trip Music Flag
 // $07F0 = Audio related?
 // $07F5 = $F0 SFX Flags for Balloon Trip?
 // $07FA = Audio related?
-// $07FB = "AL" Reset Check
+// $07FA = "HAL" Reset Check
 
 base $c000
 
@@ -250,7 +295,7 @@ lc077:
 	sta $00		// / Enable NMI at V-Blank, BG Pattern Table at $1000
 	jmp lf1d4	// Start
 
-lc082:	//"HAL" string (in reverse)
+lc082:	//"HAL" string
 db $48,$41,$4c
 
 lc085:	// Default High Scores
@@ -509,7 +554,7 @@ lc1fc:
 	dex
 	bpl lc1fc
 lc209:
-	jsr lf470
+	jsr lf470_pause
 	jsr le691
 	lda $c5
 	bne lc216
@@ -1047,8 +1092,9 @@ lc70d:
 	jsr lc6c4
 	jsr lc658
 	jmp lc5c3
+
 lc716:
-	ldx #1
+	ldx #$01
 lc718:
 	lda #$ff
 	sta $0530,x
@@ -1057,10 +1103,10 @@ lc718:
 	bpl lc718
 	jsr lc77a
 lc726:
-	ldx $3c
-	cpx #$18
-	bcc lc72e
-	ldx #$18
+	ldx $3c		// \
+	cpx #$18	// | There are only 24 (#$18) phases
+	bcc lc72e	// | X = Current Phase OR 24
+	ldx #$18	// /
 lc72e:
 	lda lc748,x
 	sta $ba
@@ -1070,7 +1116,7 @@ lc72e:
 	sta $02e0
 	sta $02e4
 	sta $02e8
-	lda #3
+	lda #$03
 	jmp lc856
 lc748:
     //25 bytes
@@ -1193,17 +1239,17 @@ lc831:
 	rts
 //-----------------------
 
-lc846:
-	lda $19
-	and #$7f
-	cmp #$40
-	bcc lc88a
-	bne lc856
-	lda $f1
-	ora #8
-	sta $f1
+lc846:	//Cloud related
+	lda $19		// \
+	and #$7f	// | If Frame Counter < 64
+	cmp #$40	// | then don't do anything
+	bcc lc88a	// | If not equal to 64
+	bne lc856	// / then don't play SFX
+	lda $f1		// \
+	ora #$08	// | Play Sound Effect
+	sta $f1		// /
 lc856:
-	and #3
+	and #$03
 	tax
 	lda lc88b,x
 	sta $5a
@@ -1213,7 +1259,7 @@ lc856:
 	sta $57
 	lda $a6,x
 	sta $58
-	lda #1
+	lda #$01
 	sta $59
 	jsr lc883
 	lda $a9,x
@@ -1226,7 +1272,7 @@ lc856:
 	sta $58
 lc883:
 	lda #$57
-	ldy #0
+	ldy #$00
 	jmp lc131
 lc88a:
 	rts
@@ -2108,7 +2154,7 @@ lcf26:
 	lda #$14
 	sta $05cb
 lcf34:
-	jsr lf470
+	jsr lf470_pause
 	inc $4c
 	jsr ld8dd
 	jsr le691
@@ -2515,7 +2561,7 @@ ld28c:
 	rts			// Total: $400 bytes
 //-----------------------
 
-ld293:
+ld293_initgamemode:
 	jsr lc10a_clearppumask
 	jsr lc0fa_disablenmi
 	lda $16		// Check Game Mode for Initialization
@@ -3375,9 +3421,9 @@ ld8fb:
 //-----------------------
 
 ld8ff:
-	ldx #1
+	ldx #$01
 ld901:
-	lda #0
+	lda #$00
 	sta $0618,x
 	lda #$ff
 	sta $061a,x
@@ -4025,9 +4071,10 @@ db $b0,$70,$40,$c0,$c0,$c0,$c0,$c0,$c0,$c0,$c0,$c0
 le685:
     //12 bytes
 db $ff,$ff,$ff,$fe,$ff,$ff,$ff,$fe,$fe,$01,$fe,$fe
+
 le691:
 	jsr lee25
-	ldx #7
+	ldx #$07
 le696:
 	lda $88,x
 	bpl le6a4
@@ -5105,7 +5152,7 @@ lee24:
 //-----------------------
 
 lee25:
-	ldx #7
+	ldx #$07
 lee27:
 	stx $12
 	ldy $12
@@ -5120,7 +5167,7 @@ lee31:
 	lda $0088,y
 	bmi lee2e
 	beq lee2e
-	lda #0
+	lda #$00
 	sta $cc
 	lda $009a,y
 	sec
@@ -5134,13 +5181,13 @@ lee31:
 	sta $12
 	lda $009a,y
 	clc
-	adc #7
+	adc #$07
 	sec
 	sbc $12
 	jsr lf08e
-	cmp #4
+	cmp #$04
 	bcs lee6a
-	lda #1
+	lda #$01
 	bne lee7c
 lee6a:
 	lda $009a,y
@@ -5149,9 +5196,9 @@ lee6a:
 	sec
 	sbc $9a,x
 	jsr lf08e
-	cmp #4
+	cmp #$04
 	bcs lee8f
-	lda #2
+	lda #$02
 lee7c:
 	sta $cc
 	lda $0091,y
@@ -5160,7 +5207,7 @@ lee7c:
 	jsr lf08e
 	cmp #$10
 	bcc lee8f
-	lda #0
+	lda #$00
 	sta $cc
 lee8f:
 	lda $91,x
@@ -5169,29 +5216,29 @@ lee8f:
 	sta $12
 	lda $0091,y
 	clc
-	adc #7
+	adc #$07
 	sec
 	sbc $12
 	jsr lf08e
-	cmp #4
+	cmp #$04
 	bcs leeaa
-	lda #4
+	lda #$04
 	bne leebc
 leeaa:
 	lda $0091,y
 	clc
-	adc #9
+	adc #$09
 	sec
 	sbc $91,x
 	jsr lf08e
-	cmp #4
+	cmp #$04
 	bcs leec0
-	lda #8
+	lda #$08
 leebc:
 	ora $cc
 	sta $cc
 leec0:
-	lda #0
+	lda #$00
 	sta $4b
 	lsr $cc
 	bcc leecd
@@ -5608,23 +5655,23 @@ lf1a8:
 lf1b3:
 	txa
 	pha
-	ldx #$0b
+	ldx #$0b	// \ Loop 11 times
 lf1b7:
-	asl $1b
-	rol $1c
-	rol
-	rol
-	eor $1b
-	rol
-	eor $1b
-	lsr
-	lsr
-	eor #$ff
-	and #1
-	ora $1b
-	sta $1b
-	dex
-	bne lf1b7
+	asl $1b		// |
+	rol $1c		// |
+	rol			// |
+	rol			// |
+	eor $1b		// |
+	rol			// |
+	eor $1b		// |
+	lsr			// |
+	lsr			// |
+	eor #$ff	// |
+	and #$01	// |
+	ora $1b		// |
+	sta $1b		// |
+	dex			// |
+	bne lf1b7	// /
 	pla
 	tax
 	lda $1b
@@ -5639,9 +5686,9 @@ lf1d9:
 	sta $03,x	// |
 	dex			// |
 	bpl lf1d9	// /
-	sta $3e
-	inc $41
-	jsr ld6de_scoreadd
+	sta $3e		// Update Player 1 Score
+	inc $41		// +1 Life to Player 1
+	jsr ld6de_scoreadd	// Update Player Score
 	lda #$0f	// \ Enable Sound Channels
 	sta $4015	// /
 	lda #$01	// \ Stop All Sounds
@@ -5672,7 +5719,7 @@ lf213:
 	lda $3c		// \
 	lsr			// |
 	lsr			// | (Current Phase >> 2) cannot
-	cmp #$08	// | be higher than $08
+	cmp #$08	// | be higher than 8
 	bcc lf221	// |
 	lda #$08	// /
 lf221:
@@ -5681,9 +5728,9 @@ lf221:
 	sta $c6
 	lda lf3c3,x
 	sta $c7
-	lda $3c
-	cmp #$02
-	bcs lf238
+	lda $3c		// \
+	cmp #$02	// | If Current Phase >= 2
+	bcs lf238	// / then
 	lda #$03
 	sta $c6
 	sta $c7
@@ -5721,7 +5768,7 @@ lf278:
 	dex							// |
 	bpl lf278					// /
 	jsr ld246_clearppu
-	jsr ld293
+	jsr ld293_initgamemode
 	lda $c6
 	cmp #$10
 	bcs lf28e
@@ -5731,27 +5778,27 @@ lf28e:
 	jsr lf4a5
 	jsr ld8ff
 	lda $16
-	beq lf29b
-	jmp lc1c5
+	beq lf29b	// Balloon Fight Game Mode
+	jmp lc1c5	// Balloon Trip Game Mode
 lf29b:
 	lda $c8
-	beq lf2a2
-	jmp lcf13
+	beq lf2a2	// Normal Phase Type
+	jmp lcf13	// Bonus Phase Type
 lf2a2:
 	jsr lc716
 	lda $3b
-	and #3
+	and #$03
 	bne lf2b3
-	lda #8
-	sta $f2
-	ldx $3a
-	bne lf2b9
+	lda #$08	// \
+	sta $f2		// / Play Stage Start jingle
+	ldx $3a		// \
+	bne lf2b9	// / Demo Flag
 lf2b3:
-	lda #$ff
-	sta $3d
-	inc $3c
+	lda #$ff	// \ Show Phase Number for
+	sta $3d		// / 255 frames
+	inc $3c		// Increment Current Phase Number
 lf2b9:
-	jsr lf470
+	jsr lf470_pause
 	lda $3d
 	beq lf2c5
 	dec $3d
@@ -5907,16 +5954,17 @@ db $58,$50,$58,$50,$50,$40,$38,$30,$28
 lf3c3:
     //9 bytes
 db $04,$04,$03,$03,$02,$02,$02,$02,$02
-lf3cc:
+
+lf3cc:		//Phase Number Display
 	lda $3d
 	and #$20
 	beq lf3ee
-	ldx #$0a
+	ldx #$0a	// \
 lf3d4:
-	lda lf3f5,x
-	sta $57,x
-	dex
-	bpl lf3d4
+	lda lf3f5,x	// |
+	sta $57,x	// |
+	dex			// |
+	bpl lf3d4	// /
 	ldy #$0a
 	lda $3c
 	sta $43
@@ -5926,13 +5974,14 @@ lf3d4:
 	sta $61
 	jmp lc12d
 lf3ee:
-	lda #0
+	lda #$00
 	ldy #$f4
 	jmp lc131
 lf3f5:
     //22 bytes
 db $20,$6c,$08,$19,$11,$0a,$1c,$0e,$25,$00,$00,$20,$6c,$08,$24
 db $24,$24,$24,$24,$24,$24,$24
+
 lf40b:
 	jsr lf465_clearframeflag
 	ldx #1
@@ -5980,58 +6029,58 @@ lf45e:
 lf465_clearframeflag:
 	lda #$00
 	sta $02
-lf469:
+lf469_waitnextframe:
 	lda $02
-	beq lf469
+	beq lf469_waitnextframe
 	dec $02
 lf46f:
 	rts
 //-----------------------
 
-lf470:
-	jsr lf469
-	lda $3a
-	bne lf46f
-	jsr le768_polljoypad0
-	and #$10
-	beq lf46f
-	lda #4
-	sta $f2
-	lda $01
-	and #$ef
-	sta $2001
+lf470_pause:
+	jsr lf469_waitnextframe
+	lda $3a		// \ If Demo Flag Set
+	bne lf46f	// / then don't do anything
+	jsr le768_polljoypad0	// \
+	and #$10				// | If START is not pressed
+	beq lf46f				// / then don't do anything
+	lda #$04	// \ Play Pause jingle
+	sta $f2		// /
+	lda $01		// \
+	and #$ef	// | Hide Sprites
+	sta $2001	// /
 lf489:
-	jsr lf465_clearframeflag
-	jsr le768_polljoypad0
-	and #$10
-	beq lf489
-	lda $01
-	sta $2001
-	ldy #4
-	lda $c8
-	ora $16
-	beq lf4a2
-	ldy #$20
+	jsr lf465_clearframeflag	// \
+	jsr le768_polljoypad0		// |
+	and #$10					// | If START is not pressed
+	beq lf489					// / then loop
+	lda $01		// \
+	sta $2001	// / Show Sprites
+	ldy #$04	// \
+	lda $c8		// | Play Pause jingle if
+	ora $16		// | it's a Normal Phase in Balloon Fight Game Mode
+	beq lf4a2	// | Else play Balloon Trip / Bonus Phase music
+	ldy #$20	// |
 lf4a2:
-	sty $f2
+	sty $f2		// /
 	rts
 //-----------------------
 
-lf4a5:
-	lda #1
+lf4a5:	//Fish related (Init?)
+	lda #$01
 	sta $048e
 	sta $048f
 	lda #$ff
 	sta $bb
 	sta $87
 	sta $048c
-	ldx #1
+	ldx #$01
 	stx $0459
 	stx $90
 	inx
 	stx $46
-	lda #$40
-	sta $99
+	lda #$40	// \ Set Fish X position
+	sta $99		// / to #$40
 	rts
 //-----------------------
 

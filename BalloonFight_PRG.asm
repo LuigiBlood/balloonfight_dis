@@ -5,6 +5,8 @@
 arch nes.cpu
 
 // RAM Map:
+
+// - Main RAM:
 // $0000 = PPUCTRL Shadow
 // $0001 = PPUMASK Shadow
 // $0002 = Video Frame Processed Flag
@@ -14,14 +16,14 @@ arch nes.cpu
 // $0012 = (Temp) Used for Division, Balloon Trip Ranking, Player Y
 // $0013 = (Temp?)
 // $0014 = (Temp?)
-// $0015 = (Temp?) Player X, Balloon Trip Ranking Scores
+// $0015 = (Temp) Player X, Balloon Trip Ranking Scores
 // $0016 = Game Mode (0 = Balloon Fight, 1 = Balloon Trip)
-
+// $0017 = Scrolling (Balloon Trip)
+// $0018 = PPUCTRL Shadow (Balloon Trip?)
 // $0019 = Frame Counter
-
+// $001A = Unused
 // $001B = ?
 // $001C = ?
-
 // $001D = Loading Pointer
 // $001F = Graphics/Enemy Data Pointer
 // $0021 = Top Score Pointer
@@ -29,6 +31,13 @@ arch nes.cpu
 // $0025 = Right Side  - Platform Collision Pointer
 // $0027 = Top Side    - Platform Collision Pointer
 // $0029 = Bottom Side - Platform Collision Pointer
+
+// $002B = (Temp?) Y Velocity Frac?
+// $002C = (Temp?) Y Velocity Int?
+
+// $002F = 
+
+// $0031-$0039 = ?
 
 // $003A = Demo Flag
 // $003B = Current Level Header
@@ -48,9 +57,11 @@ arch nes.cpu
 // $0048 = 5th Digit score to add
 // $0049 = Balloon Trip Rank 0x
 // $004A = Balloon Trip Rank x0
+// $004B = ?
 
 // Star Animation:
 // $004C = Star Update?
+// $004D-$004E = Unused
 // $004F = Star Animation - Star ID
 // $0050 = PPU Address Low
 // $0051 = PPU Address High
@@ -60,30 +71,21 @@ arch nes.cpu
 // $0051 = ???
 // $0052 = PPU Upload Buffer Position
 // $0053 = PPU Upload Buffer Size
-// $0054 = Cloud/Flipper X coordinate used for rendering
-// $0055 = Cloud/Flipper Y coordinate used for rendering
 
-// $0057 = ?
+// $0054 = (Temp) Cloud/Flipper X coordinate used for rendering
+// $0055 = (Temp) Cloud/Flipper Y coordinate used for rendering
 
-// $005A-$0079 = Palette?
+// $0056 = Size of upload to PPU Buffer
+// $0057 = Data to upload to PPU Buffer Blocks
 
-// $0081-$0086 = Enemies Status
-// $0087 = Fish?
+// $005A-$0079 = Palette
+// $007A-$007E = Unused?
 
-// $0088 = Player 1 Balloons
-// $0089 = Player 2 Balloons
-// $008A-$008F = Enemies Balloons
-// $0090 = Fish?
-
-// $0091 = Player 1 X Position
-// $0092 = Player 2 X Position
-// $0093 = Enemies X Positions
-// $0099 = Fish X Position
-
-// $009A = Player 1 Y Position
-// $009B = Player 2 Y Position
-// $009C = Enemies Y Positions
-// $00A2 = Fish Y Position
+// See Object RAM notes
+// $007F-$0087 = Object Status
+// $0088-$0090 = Object Balloons
+// $0091-$0099 = Object X Positions (Int)
+// $009A-$00A2 = Object Y Positions (Int)
 
 // $00A3 = Amount of Clouds
 // $00A4 = Current Cloud ID?
@@ -98,6 +100,7 @@ arch nes.cpu
 // $00BA = ?
 
 // $00BB = Fish?
+// $00BC = ?
 // $00BD = Player 1 Invincibility Flag
 // $00BE = Player 2 Invincibility Flag
 // $00BF = Player 1 Invincibility Time
@@ -110,7 +113,10 @@ arch nes.cpu
 // $00C6 = ???
 // $00C7 = ???
 // $00C8 = Phase Type (00 = Regular, 01 = Bonus)
+// $00C9 = ???
+// $00CA = ???
 
+// $00CC = Collision related
 // $00CD = Amount of Platforms
 
 // $00CE = Unused
@@ -140,42 +146,70 @@ arch nes.cpu
 // $00F1 = SFX 2
 // $00F2 = Music/Jingle
 // $00F3 = SFX 3
-
 // $00F4 = Current SFX?
 // $00F5 = 
 // $00F6 = Currently Playing Music/Jingle
 // $00F7 = 
+// $00F8 = Unused?
+// $00F9-$00FC = Written but not read?
+// $00FD = ?
+// $00FE-$00FF = Written but not read?
 
 // $0100-$01FF = Stack
 // $0200-$02FF = OAM Buffer
-// $0300-$03FF = PPU Upload Buffer
+// $0300-$03FF = PPU Upload Buffer Blocks
 //					(16-bit PPU Address,
 //					 8-bit Size,
 //					 Data, and repeat)
 
-// $0451 = Player 1 Type
-// $0452 = Player 2 Type
-// $0453 = Enemies Type
-// $0459 = Fish?
+// - Object RAM:
+// Note: One byte per object (Player, Enemy...)
+// +0 = Player 1
+// +1 = Player 2
+// +2 to +7 = Enemies
+// +8 = Fish (Mostly Unused)
 
+// $0400-$0408 = X Positions (Frac)
+// $0409-$0411 = Y Positions (Frac)
+// $0412-$041A = Y Velocity (Frac)
+// $041B-$0423 = Y Velocity (Int)
+// $0424-$042C = X Velocity (Frac)
+// $042D-$0435 = X Velocity (Int)
+// $0436-$043E = Animation Frame
+// $043F-$0447 = ?
+// $0448-$0450 = Direction (0 = Left, 1 = Right)
+// $0451-$0459 = Object Type
+// $045A-$0462 = ?
+// $0463-$046B = ?
+// $046C-$0474 = ?
+// $0475-$047D = ?
+// $047E-$0486 = ?
+
+// $0487 = ???
 // $0488 = ???
 // $048B = Fish?
 // $048C = Fish?
 // $048E = Fish?
 // $048F = Fish?
 
-// $0530 = ?
+// $0490-$04A3 = Balloon related
+// $04A4-$04B7 = ?
+// $0530-$0543 = ?
 
-// $0544 = ?
+// $0544-$0557 = ?
 
 // $0558 = Bonus Phase Intensity Level
 // $0559 = Bonus Phase x00 points per balloon
 // $055A = Balloon Rising Speed
 // $055B = Bonus Phase Super Bonus x0000 points
 // $055C = Bonus Phase Super Bonus 0x000 points
-// $055D = Balloon GFX
-// $0567 = Balloon X positions
-// $057B = Balloon Y positions
+// $055D-$0566 = Balloon GFX
+// $0567-$0570 = Balloon X positions
+// $0571-$057A = Balloon?
+// $057B-$0584 = Balloon Y positions
+
+// $05CD = ?
+// $05CE = ?
 
 // $05D1 = Amount of Flippers
 // $05D2 = Flipper X positions
@@ -243,14 +277,14 @@ lc027:
 	bne lc034	// |
 	dex			// | If found, then skip to the end
 	bpl lc027	// | Else, proceed with initialization code
-	bmi lc077	// /
+	bmi lc077	// / (BUG: It gets rewritten during gameplay so it never skips.)
 
 lc034:
 	ldx #$00	// \
 	txa			// | Initialize parts of RAM
 lc037:
-	sta $00,x	// | $0000 - $00FF
-	sta $0700,x	// | $0700 - $07FF
+	sta $00,x	// | $0000 - $00FF: Main RAM
+	sta $0700,x	// | $0700 - $07FF: Balloon Trip RAM
 	inx			// |
 	bne lc037	// /
 
@@ -315,7 +349,7 @@ lc094_nmi:
 	pha			// /
 	lda #$00	// \
 	sta $2003	// | Upload OAM Buffer
-	lda #$02	// | $0200 - $02FF to OAM (DMA)
+	lda #$02	// | $0200 - $02FF to OAM (via DMA)
 	sta $4014	// /
 	lda $52						// \ Check for PPU Buffer Upload
 	cmp $53						// |
@@ -339,15 +373,15 @@ lc0ac:
 	lda $16		// \ If Game Mode is Balloon Fight mode
 	beq lc0f1	// / then end NMI
 lc0d1:
-	lda $2002	// \ Wait for V-Blank
+	lda $2002	// \ Wait for V-Blank End
 	bmi lc0d1	// /
 
 	ldx #$04	// \
 	ldy #$c6	// |
 lc0da:
 	dey			// | Wait 6125 cycles
-	bne lc0da	// |
-	dex			// |
+	bne lc0da	// | for updating the scrolling
+	dex			// | mid frame (under scoreboard)
 	bne lc0da	// /
 
 	lda $18		// \
@@ -376,7 +410,7 @@ lc0f7_brk:
 
 
 //----------------------
-// ? code
+// NMI/PPU Management code
 //----------------------
 
 lc0fa_disablenmi:
@@ -405,72 +439,72 @@ lc115:
 	lda $01		// Write PPUMASK Shadow to PPUMASK
 	bne lc10c_writeppumask
 lc119:
-	jsr lc154
-	ldy #$00
+	jsr lc154_newppublock
+	ldy #$00	// \
 lc11e:
-	lda $0057,y
-	sta $0300,x
-	inx
-	iny
-	cpy $56
-	bne lc11e
-	stx $53
+	lda $0057,y	// | Put PPU Data
+	sta $0300,x	// | to upload to Nametable 1
+	inx			// |
+	iny			// |
+	cpy $56		// |
+	bne lc11e	// /
+	stx $53		// Update PPU Buffer Size
 	rts
 //-----------------------
 
-lc12d:
-	lda #$57
-	ldy #$00
-lc131:
-	sta $21
-	sty $22
+lc12d_copypputempblock:
+	lda #$57	// \
+	ldy #$00	// / [$21] = $0057
+lc131_copyppublock:
+	sta $21		// \ Update Pointer
+	sty $22		// / [$21] = $YYAA
 	txa
 	pha
-	ldy #$02
-	lda ($21),y
-	clc
-	adc #$03
-	sta $12
-	ldx $53
-	ldy #$00
+	ldy #$02	// \
+	lda ($21),y	// | Get Data Size + 3
+	clc			// | to include Address and Size info
+	adc #$03	// |
+	sta $12		// /
+	ldx $53		// Get PPU Buffer Size
+	ldy #$00	// \
 lc144:
-	lda ($21),y
-	sta $0300,x
-	inx
-	iny
-	cpy $12
-	bne lc144
-	stx $53
+	lda ($21),y	// | Copy PPU Upload Block
+	sta $0300,x	// |
+	inx			// |
+	iny			// |
+	cpy $12		// |
+	bne lc144	// /
+	stx $53		// Update PPU Buffer Size
 	pla
 	tax
 	rts
 //-----------------------
 
-lc154:
-	ldx $53
-	lda #$00
-	sta $12
-	lda $55
-	asl
-	asl
-	asl
-	asl
-	rol $12
-	asl
-	rol $12
-	ora $54
-	pha
-	lda $12
-	ora #$20
-	sta $0300,x
-	inx
-	pla
-	sta $0300,x
-	inx
-	lda $56
-	sta $0300,x
-	inx
-	rts
+lc154_newppublock:
+	ldx $53		// X = PPU Buffer Size
+	lda #$00	// \
+	sta $12		// |
+	lda $55		// |
+	asl			// | Prepare PPUADDR
+	asl			// | [$55] = 000XXDDD
+	asl			// | 
+	asl			// | PPUADDR_H = 001000XX
+	rol $12		// | PPUADDR_L = DDD00000 | [$54]
+	asl			// |
+	rol $12		// |
+	ora $54		// |
+	pha			// /
+	lda $12		// \
+	ora #$20	// | Put PPUADDR High Byte
+	sta $0300,x	// / (From Nametable 1)
+	inx			// \
+	pla			// | Put PPUADDR Low Byte
+	sta $0300,x	// /
+	inx			// \
+	lda $56		// | Put Upload Size
+	sta $0300,x	// /
+	inx			// \ Return:
+	rts			// / X = Current PPU Buffer Address
 //-----------------------
 
 lc17c_uploadppubuffer:
@@ -521,38 +555,38 @@ lc1be:
 //-----------------------
 
 lc1c5:
-	lda #$20
-	sta $f2
-	jsr lc527
+	lda #$20	// \ Play Balloon Trip / Bonus Phase Music
+	sta $f2		// /
+	jsr lc527_setbonuspts10
 	jsr lc539_rankupdate
-	lda #$ff
-	sta $cd
-	lda #$ad
-	sta $23
-	lda #$c4
-	sta $24
-	lda #$80
-	sta $91
-	sta $0488
-	lda #$70
-	sta $9a
-	jsr lcd4a
-	lda #0
-	sta $41
-	sta $c9
+	lda #$ff	// \ No platforms?
+	sta $cd		// /
+	lda #$ad	// \
+	sta $23		// | Set Pointer
+	lda #$c4	// | [$23] = $C4AD
+	sta $24		// /
+	lda #$80	// \ Set Player 1 X Position
+	sta $91		// / to #$80
+	sta $0488	// Set Player 1 Direction to #$80 (?)
+	lda #$70	// \ Set Player 1 Y Position
+	sta $9a		// / to #$70
+	jsr lcd4a_initballoons
+	lda #$00
+	sta $41		// 0 Lives to Player 1
+	sta $c9 
 	sta $ca
 	sta $ba
 	sta $c5
-	sta $c8
-	jsr lf4a5
-	ldx #$13
+	sta $c8		// Phase Type = 0
+	jsr lf4a5_initfish
+	ldx #$13	// \
 lc1fc:
-	lda #$ff
-	sta $0530,x
-	lda #$f0
-	sta $04a4,x
-	dex
-	bpl lc1fc
+	lda #$ff	// |
+	sta $0530,x	// | ?
+	lda #$f0	// |
+	sta $04a4,x	// |
+	dex			// |
+	bpl lc1fc	// /
 lc209:
 	jsr lf470_pause
 	jsr le691
@@ -732,7 +766,7 @@ lc32d:
 	sta $f2
 	inc $c8
 	jsr ld3ed
-	jsr lc527
+	jsr lc527_setbonuspts10
 	dec $c8
 	ldx #$64
 	jsr lf45e
@@ -800,14 +834,14 @@ db $00,$00,$00,$08,$00,$09,$98,$00,$0a,$00,$00,$00,$86,$8a,$15
 db $00,$14,$00,$8e,$13,$00,$00,$03,$0d,$00,$0d,$0e,$00,$0c,$0d
 db $00,$0d,$19,$00,$86,$92,$00,$00,$98,$00,$00,$0a,$12,$00,$09
 db $13,$00,$08,$14,$00,$07,$15,$00,$07,$16,$00,$07,$00,$00,$00
-lc527:
-	jsr ld0e2
-	asl $0559
-	lda $0559
-	asl
-	asl
-	adc $0559
-	sta $0559
+lc527_setbonuspts10:
+	jsr ld0e2_setbonusphase	// Set up Balloon Points
+	asl $0559	// \
+	lda $0559	// | ([$0559] * 2) * 5
+	asl			// | Multiply Balloon Points
+	asl			// | by 10
+	adc $0559	// |
+	sta $0559	// /
 	rts
 //-----------------------
 
@@ -1273,7 +1307,7 @@ lc856:
 lc883:
 	lda #$57
 	ldy #$00
-	jmp lc131
+	jmp lc131_copyppublock
 lc88a:
 	rts
 //-----------------------
@@ -1612,7 +1646,7 @@ lcb1e:
 	lda $0490,x
 	sec
 	sbc $0091,y
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #8
 	bcs lcb70
 	lda $04a4,x
@@ -1620,7 +1654,7 @@ lcb1e:
 	sbc $009a,y
 	sec
 	sbc #8
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #$0c
 	bcs lcb70
 	lda #0
@@ -1695,7 +1729,7 @@ lcbc1:
 	sec
 	sbc $05d2,x
 	sta $12
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #$12
 	bcs lcc2f
 	lda $009a,y
@@ -1704,7 +1738,7 @@ lcbc1:
 	sec
 	sbc $05dc,x
 	sta $13
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #$12
 	bcs lcc2f
 	lda $12
@@ -1785,14 +1819,14 @@ lcc73:
 	adc #8
 	sec
 	sbc $05d2,x
-	jsr lf08e
+	jsr lf08e_abs
 	sta $12
 	lda $009a,y
 	clc
 	adc #$0c
 	sec
 	sbc $05dc,x
-	jsr lf08e
+	jsr lf08e_abs
 	sta $13
 	lda $05fa,x
 	cmp #3
@@ -1867,7 +1901,7 @@ lcd0f:
 	pha
 	lda #$57
 	ldy #0
-	jsr lc131
+	jsr lc131_copyppublock
 	pla
 	tay
 	lda $58
@@ -1898,15 +1932,16 @@ lcd42:
 db $a6,$a0,$b1,$24
 lcd46:
 db $a7,$24,$24,$24
-lcd4a:
-	ldx #9
+
+lcd4a_initballoons:
+	ldx #$09	// \ Reset all 10 balloons
 lcd4c:
-	lda #$ff
-	sta $055d,x
-	lda #$f0
-	sta $057b,x
-	dex
-	bpl lcd4c
+	lda #$ff	// | GFX = #$FF
+	sta $055d,x	// |
+	lda #$f0	// | Y Positions = #$F0
+	sta $057b,x	// |
+	dex			// |
+	bpl lcd4c	// /
 	rts
 //-----------------------
 
@@ -2108,13 +2143,13 @@ lced0:
 	bcs lcf0f
 	sec
 	sbc $057b,x
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #$18
 	bcs lcf0f
 	lda $0091,y
 	sec
 	sbc $0567,x
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #$10
 	bcs lcf0f
 	lda #$ff
@@ -2138,8 +2173,8 @@ lcf12:
 lcf13:
 	lda #$20
 	sta $f2
-	jsr ld0e2
-	jsr lcd4a
+	jsr ld0e2_setbonusphase
+	jsr lcd4a_initballoons
 	ldx $40
 lcf1f:
 	lda $41,x
@@ -2179,13 +2214,13 @@ lcf51:
 	jsr lf45e
 	lda #$2b
 	ldy #$d1
-	jsr lc131
+	jsr lc131_copyppublock
 	lda #$5a
 	ldy #$d1
-	jsr lc131
+	jsr lc131_copyppublock
 	lda #$65
 	ldy #$d1
-	jsr lc131
+	jsr lc131_copyppublock
 	ldx $40
 lcf7e:
 	lda #$20
@@ -2281,7 +2316,7 @@ ld02e:
 	bne ld068
 	lda #$70
 	ldy #$d1
-	jsr lc131
+	jsr lc131_copyppublock
 	jsr lf465_clearframeflag
 	ldx #$1a
 ld04f:
@@ -2293,7 +2328,7 @@ ld04f:
 	sta $68
 	lda $055c
 	sta $69
-	jsr lc12d
+	jsr lc12d_copypputempblock
 	lda #$10
 	sta $f2
 ld068:
@@ -2305,7 +2340,7 @@ ld070:
 	sta $3e
 	ldx #4
 	jsr ld213
-	jsr lc12d
+	jsr lc12d_copypputempblock
 	lda $40
 	beq ld08e
 	inc $3e
@@ -2313,7 +2348,7 @@ ld070:
 	jsr ld213
 	lda #$65
 	ldy #0
-	jsr lc131
+	jsr lc131_copyppublock
 ld08e:
 	lda #1
 	sta $f1
@@ -2358,34 +2393,35 @@ ld0dc:
 	dex
 	bpl ld0d6
 	jmp lf353
-ld0e2:
-	ldx $0558
-	lda ld10d,x
-	sta $0559
-	lda ld112,x
-	sta $055a
-	lda ld117,x
-	sta $055b
-	lda ld11c,x
-	sta $055c
-	cpx #4
-	bcs ld104
-	inc $0558
-ld104:
-	lda #0
-	sta $05cd
-	sta $05ce
-	rts
-//-----------------------
 
-ld10d:
+ld0e2_setbonusphase:
+	ldx $0558	// \ Set up Bonus Phase
+	lda ld10d,x	// | according to Intensity (max 4)
+	sta $0559	// | 
+	lda ld112,x	// | Set points per balloon
+	sta $055a	// | Set rising speed
+	lda ld117,x	// | Set super bonus points
+	sta $055b	// |
+	lda ld11c,x	// |
+	sta $055c	// /
+	cpx #$04	// \ Increment Bonus Phase Intensity
+	bcs ld104	// | until maximum (4)
+	inc $0558	// /
+ld104:
+	lda #$00	// \
+	sta $05cd	// | ?
+	sta $05ce	// /
+	rts
+
+ld10d:	// Points per balloon
 db $03,$05,$07,$07,$07
-ld112:
+ld112:	// Rising Speed
 db $80,$90,$98,$a0,$a8
-ld117:
+ld117:	// Super Bonus x0000 Points
 db $01,$01,$02,$02,$03
-ld11c:
+ld11c:	// Super Bonus 0x000 Points
 db $00,$05,$00,$05,$00
+
 ld121:
 	lda $05cd
 	clc
@@ -2423,7 +2459,7 @@ ld1a2:
 	ldx #$12
 	ldy $05ce
 	jsr ld1dc
-	jsr lc12d
+	jsr lc12d_copypputempblock
 	lda $40
 	bne ld1c2
 	rts
@@ -2432,7 +2468,7 @@ ld1a2:
 ld1c2:
 	lda #$65
 	ldy #0
-	jmp lc131
+	jmp lc131_copyppublock
 ld1c9:
 	ldy #0
 ld1cb:
@@ -2757,7 +2793,7 @@ ld404:
 	dex
 	bpl ld404
 ld40d:
-	jmp lc12d
+	jmp lc12d_copypputempblock
 ld410:
 	ldx $0558
 	lda ld46a,x
@@ -4073,15 +4109,15 @@ le685:
 db $ff,$ff,$ff,$fe,$ff,$ff,$ff,$fe,$fe,$01,$fe,$fe
 
 le691:
-	jsr lee25
-	ldx #$07
+	jsr lee25_collision
+	ldx #$07	// \
 le696:
-	lda $88,x
-	bpl le6a4
-	cmp #$ff
-	beq le6e2
-	jsr lecba
-	jmp le6e2
+	lda $88,x	// | Check all Object's Balloons
+	bpl le6a4	// | If >= 0 then proceed
+	cmp #$ff	// | else if == -1 then go to next object
+	beq le6e2	// | else ? and go to next object
+	jsr lecba	// |
+	jmp le6e2	// /
 le6a4:
 	cpx #$02
 	bcc le6b8
@@ -4493,7 +4529,7 @@ le983:
 	beq le99a
 	sec
 	sbc $91,x
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #5
 	bcc le9b6
 le99a:
@@ -4756,7 +4792,7 @@ leb62:
 	cmp #$0b
 	bne leb84
 	dec $0451,x
-	jsr lf107
+	jsr lf107_reverseyvelocity
 	jmp lf18c
 leb84:
 	lda #2
@@ -4790,13 +4826,13 @@ leba0:
 //-----------------------
 
 lebb2:
-	jsr lf0b4
+	jsr lf0b4_swapxy
 	jsr leb8e
-	jmp lf0b4
+	jmp lf0b4_swapxy
 lebbb:
-	jsr lf0b4
+	jsr lf0b4_swapxy
 	jsr leba0
-	jmp lf0b4
+	jmp lf0b4_swapxy
 lebc4:
 	cpx #2
 	bcs lebe3
@@ -4936,9 +4972,10 @@ lecad:
 lecae:
     //12 bytes
 db $01,$02,$02,$03,$01,$02,$02,$03,$01,$02,$02,$03
+
 lecba:
-	lda $7f,x
-	bne led27
+	lda $7f,x	// \ If Object(x).Status != 0
+	bne led27	// / then don't do anything
 	jsr le7b1
 	jsr leb8e
 	lda $0409,x
@@ -4963,13 +5000,13 @@ lecdf:
 	lda $9a,x
 	sec
 	sbc $009a,y
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #$18
 	bcs led22
 	lda $91,x
 	sec
 	sbc $0091,y
-	jsr lf08e
+	jsr lf08e_abs
 	cmp #$10
 	bcs led22
 	lda #$ff
@@ -5116,7 +5153,7 @@ ledd6:
 	lda ($29),y
 lede1:
 	sta $9a,x
-	jsr lf107
+	jsr lf107_reverseyvelocity
 	jsr lf18c
 	cpx #2
 	bcs ledf0
@@ -5136,7 +5173,7 @@ ledff:
 	lda $042d,x
 	bpl lee24
 lee08:
-	jsr lf0de
+	jsr lf0de_reversexvelocity
 	jsr lf172
 	lda $042d,x
 	ora $0424,x
@@ -5151,8 +5188,8 @@ lee24:
 	rts
 //-----------------------
 
-lee25:
-	ldx #$07
+lee25_collision:
+	ldx #$07	// Seems to compare balloons from objects
 lee27:
 	stx $12
 	ldy $12
@@ -5161,202 +5198,202 @@ lee27:
 lee2e:
 	jmp lef2a
 lee31:
-	lda $88,x
-	bmi lee2e
-	beq lee2e
-	lda $0088,y
-	bmi lee2e
-	beq lee2e
+	lda $88,x	// \ If Object(x).Balloon <= 0
+	bmi lee2e	// | then skip
+	beq lee2e	// /
+	lda $0088,y	// \ If Object(y).Balloon <= 0
+	bmi lee2e	// | then skip
+	beq lee2e	// /
 	lda #$00
 	sta $cc
-	lda $009a,y
-	sec
-	sbc $9a,x
-	jsr lf08e
-	cmp #$18
-	bcs leec0
-	lda $9a,x
-	clc
-	adc #$18
-	sta $12
-	lda $009a,y
-	clc
-	adc #$07
-	sec
-	sbc $12
-	jsr lf08e
-	cmp #$04
-	bcs lee6a
+	lda $009a,y		// \
+	sec				// | 
+	sbc $9a,x		// | If abs(Object(y).Y - Object(x).Y)
+	jsr lf08e_abs	// | <= #$18
+	cmp #$18		// | then
+	bcs leec0		// /
+	lda $9a,x		// \
+	clc				// | If
+	adc #$18		// | abs((Object(y).Y + 7)
+	sta $12			// |   - (Object(x).Y + #$18))
+	lda $009a,y		// | >= 4 then
+	clc				// |
+	adc #$07		// |
+	sec				// |
+	sbc $12			// |
+	jsr lf08e_abs	// |
+	cmp #$04		// |
+	bcs lee6a		// /
 	lda #$01
 	bne lee7c
 lee6a:
-	lda $009a,y
-	clc
-	adc #$11
-	sec
-	sbc $9a,x
-	jsr lf08e
-	cmp #$04
-	bcs lee8f
+	lda $009a,y		// \
+	clc				// | If abs(Object(y).Y + #$11 - Object(x).Y)
+	adc #$11		// | >= 4 then
+	sec				// |
+	sbc $9a,x		// |
+	jsr lf08e_abs	// |
+	cmp #$04		// |
+	bcs lee8f		// /
 	lda #$02
 lee7c:
 	sta $cc
-	lda $0091,y
-	sec
-	sbc $91,x
-	jsr lf08e
-	cmp #$10
-	bcc lee8f
+	lda $0091,y		// \
+	sec				// | If abs(Object(y).X - Object(x).X)
+	sbc $91,x		// | < #$10 then
+	jsr lf08e_abs	// |
+	cmp #$10		// |
+	bcc lee8f		// /
 	lda #$00
 	sta $cc
 lee8f:
-	lda $91,x
-	clc
-	adc #$10
-	sta $12
-	lda $0091,y
-	clc
-	adc #$07
-	sec
-	sbc $12
-	jsr lf08e
-	cmp #$04
-	bcs leeaa
+	lda $91,x		// \
+	clc				// |
+	adc #$10		// | If abs((Object(y).X + 7)
+	sta $12			// |      - (Object(x).X + #$10))
+	lda $0091,y		// | >= 4 then
+	clc				// |
+	adc #$07		// |
+	sec				// |
+	sbc $12			// |
+	jsr lf08e_abs	// |
+	cmp #$04		// |
+	bcs leeaa		// /
 	lda #$04
 	bne leebc
 leeaa:
-	lda $0091,y
-	clc
-	adc #$09
-	sec
-	sbc $91,x
-	jsr lf08e
-	cmp #$04
-	bcs leec0
+	lda $0091,y		// \
+	clc				// | If abs(Object(y).X + 9 - Object(x).X)
+	adc #$09		// | >= 4 then
+	sec				// |
+	sbc $91,x		// |
+	jsr lf08e_abs	// |
+	cmp #$04		// |
+	bcs leec0		// /
 	lda #$08
 leebc:
 	ora $cc
 	sta $cc
 leec0:
-	lda #$00
-	sta $4b
-	lsr $cc
-	bcc leecd
-	jsr lf0a6
-	bmi leed6
+	lda #$00	// \
+	sta $4b		// /
+	lsr $cc		// \ [$CC].bit0 = Velocity Y related
+	bcc leecd	// |
+	jsr lf0a6	// | 
+	bmi leed6	// /
 leecd:
-	lsr $cc
-	bcc leef1
-	jsr lf0a6
-	bmi leef1
+	lsr $cc		// \ [$CC].bit1 = Velocity Y related
+	bcc leef1	// |
+	jsr lf0a6	// |
+	bmi leef1	// /
 leed6:
-	jsr lf0bd
-	bcs leeed
-	jsr lf107
+	jsr lf0bd	// \ Do both object X and Y exist?
+	bcs leeed	// /
+	jsr lf107_reverseyvelocity
 	jsr lf18c
-	jsr lf0b4
-	jsr lf107
+	jsr lf0b4_swapxy
+	jsr lf107_reverseyvelocity
 	jsr lf18c
-	jsr lf0b4
+	jsr lf0b4_swapxy
 leeed:
-	lda #1
+	lda #$01
 	sta $4b
 leef1:
-	lsr $cc
-	bcc leefa
-	jsr lf098
-	bmi lef03
+	lsr $cc		// \ [$CC].bit2 = Velocity X related
+	bcc leefa	// |
+	jsr lf098	// |
+	bmi lef03	// /
 leefa:
-	lsr $cc
-	bcc lef1e
-	jsr lf098
-	bmi lef1e
+	lsr $cc		// \ [$CC].bit3 = Velocity X related
+	bcc lef1e	// |
+	jsr lf098	// |
+	bmi lef1e	// /
 lef03:
-	jsr lf0bd
-	bcs lef1a
-	jsr lf0de
+	jsr lf0bd	// \ Do both object X and Y exist?
+	bcs lef1a	// /
+	jsr lf0de_reversexvelocity
 	jsr lf172
-	jsr lf0b4
-	jsr lf0de
+	jsr lf0b4_swapxy
+	jsr lf0de_reversexvelocity
 	jsr lf172
-	jsr lf0b4
+	jsr lf0b4_swapxy
 lef1a:
-	lda #1
+	lda #$01
 	sta $4b
 lef1e:
 	jsr lef37
-	jsr lf0b4
+	jsr lf0b4_swapxy
 	jsr lef37
-	jsr lf0b4
+	jsr lf0b4_swapxy
 lef2a:
-	dey
-	bmi lef30
-	jmp lee31
+	dey			// \
+	bmi lef30	// | Loop Y Objects
+	jmp lee31	// /
 lef30:
-	dex
-	bmi lef36
-	jmp lee27
+	dex			// \
+	bmi lef36	// | Loop X Objects
+	jmp lee27	// /
 lef36:
 	rts
 //-----------------------
 
 lef37:
-	cpx #2
-	bcc lef42
-	cpy #2
-	bcc lef42
-	jmp lf043
+	cpx #$02	// \ Is Object X a player?
+	bcc lef42	// |
+	cpy #$02	// | Is Object Y a player?
+	bcc lef42	// /
+	jmp lf043	// Skip
 lef42:
-	lda #0
+	lda #$00
 	sta $0487
 	lda $0475,x
 	beq lef4f
-	jmp lf043
+	jmp lf043	// Skip
 lef4f:
 	lda $4b
 	bne lef56
-	jmp lf043
+	jmp lf043	// Skip
 lef56:
-	cpx #2
+	cpx #$02
 	bcs lef61
 	lda $bd,x
 	beq lef72
-	jmp lf043
+	jmp lf043	// Skip
 lef61:
 	lda $88,x
-	cmp #1
+	cmp #$01
 	bne lef72
 	lda $7f,x
-	cmp #2
+	cmp #$02
 	bcs lef7f
-	lda #1
+	lda #$01
 	sta $0487
 lef72:
 	lda $009a,y
 	clc
-	adc #4
+	adc #$04
 	cmp $9a,x
 	bcc lef7f
-	jmp lf043
+	jmp lf043	// Skip
 lef7f:
 	lda #$14
 	sta $0475,x
-	lda #0
+	lda #$00
 	sta $0436,x
-	cpy #2
+	cpy #$02
 	bcc lef97
 	lda $0088,y
-	cmp #2
+	cmp #$02
 	beq lef97
-	jmp lf043
+	jmp lf043	// Skip
 lef97:
 	lda $f0
-	ora #2
+	ora #$02
 	sta $f0
 	lda $88,x
-	cmp #2
+	cmp #$02
 	bne lefc0
-	cpx #2
+	cpx #$02
 	bcs lefc0
 	sty $12
 	ldy $7f,x
@@ -5365,10 +5402,10 @@ lef97:
 	pha
 	pla
 	bne lefb7
-	jmp lf043
+	jmp lf043	// Skip
 lefb7:
 	sta $7f,x
-	lda #0
+	lda #$00
 	sta $0436,x
 	beq lefea
 lefc0:
@@ -5376,10 +5413,10 @@ lefc0:
 	bne lefce
 	lda #$ff
 	sta $041b,x
-	lda #0
+	lda #$00
 	sta $0412,x
 lefce:
-	lda #0
+	lda #$00
 	sta $7f,x
 	sta $0424,x
 	sta $042d,x
@@ -5388,7 +5425,7 @@ lefce:
 	lda #$ff
 	bne lefe2
 lefe0:
-	lda #0
+	lda #$00
 lefe2:
 	sta $046c,x
 	lda #$80
@@ -5398,15 +5435,15 @@ lefea:
 	ldy $0451,x
 	lda lf05e,y
 	sta $0451,x
-	lda #1
+	lda #$01
 	sta $047e,x
 	ldy $12
-	cpy #2
-	bcs lf043
+	cpy #$02
+	bcs lf043	// Skip
 	lda $0451,x
-	cmp #7
+	cmp #$07
 	beq lf011
-	cmp #8
+	cmp #$08
 	bcc lf011
 	lda $f1
 	ora #$80
@@ -5440,13 +5477,13 @@ lf023:
 	pla
 	tay
 lf043:
-	lda $0451,x
-	cmp #$0b
-	bne lf052
-	lda $c8
-	bne lf052
-	lda #$20
-	sta $f0
+	lda $0451,x	// \ If Object X is not dead
+	cmp #$0b	// | then don't play any SFX
+	bne lf052	// /
+	lda $c8		// \ If it's Bonus Phase
+	bne lf052	// / then don't play any SFX
+	lda #$20	// \ Play SFX
+	sta $f0		// /
 lf052:
 	rts
 //-----------------------
@@ -5466,36 +5503,37 @@ db $00,$00,$00,$00,$32,$4b,$64,$64,$64,$96,$c8,$64
 lf082:
     //12 bytes
 db $00,$00,$00,$00,$01,$02,$03,$03,$02,$03,$04,$03
-lf08e:
-	pha
-	pla
-	bpl lf097
-	eor #$ff
-	clc
-	adc #1
+
+lf08e_abs:
+	pha			// \
+	pla			// |
+	bpl lf097	// | Get Absolute Value of A
+	eor #$ff	// |
+	clc			// |
+	adc #$01	// |
 lf097:
-	rts
+	rts			// /
 //-----------------------
 
 lf098:
-	lda $0424,y
-	sec
-	sbc $0424,x
-	lda $042d,y
-	sbc $042d,x
+	lda $0424,y // \ Object(y).XVelocityFrac - Object(x).XVelocityFrac
+	sec			// |
+	sbc $0424,x	// /
+	lda $042d,y	// \ Object(y).XVelocity - Object(x).XVelocity
+	sbc $042d,x	// /
 	rts
 //-----------------------
 
 lf0a6:
-	lda $0412,y
-	sec
-	sbc $0412,x
-	lda $041b,y
-	sbc $041b,x
+	lda $0412,y	// \ Object(y).YVelocityFrac - Object(x).YVelocityFrac
+	sec			// |
+	sbc $0412,x	// /
+	lda $041b,y	// \ Object(y).YVelocity - Object(x).YVelocity
+	sbc $041b,x	// /
 	rts
 //-----------------------
 
-lf0b4:
+lf0b4_swapxy:
 	stx $12
 	sty $13
 	ldx $13
@@ -5504,139 +5542,138 @@ lf0b4:
 //-----------------------
 
 lf0bd:
-	cpx #2
-	bcc lf0dd
-	lda $7f,x
-	cmp #2
-	bcc lf0dd
-	lda #1
-	cmp $88,x
-	bcs lf0dd
-	cpy #2
-	bcc lf0dd
-	lda $007f,y
-	cmp #2
-	bcc lf0dd
-	lda #1
-	cmp $0088,y
+	cpx #$02	// \
+	bcc lf0dd	// /
+	lda $7f,x	// \ If Object(x).Status < 2
+	cmp #$02	// |
+	bcc lf0dd	// /
+	lda #$01	// \ If 1 - Object(x).Balloons >= 0
+	cmp $88,x	// |
+	bcs lf0dd	// |
+	cpy #$02	// | If 1 - Object(x).Balloons - 2 < 0
+	bcc lf0dd	// /
+	lda $007f,y	// \ If Object(y).Status < 2
+	cmp #$02	// |
+	bcc lf0dd	// /
+	lda #$01	// \ If 1 - Object(y).Balloons
+	cmp $0088,y	// /
 lf0dd:
 	rts
 //-----------------------
 
-lf0de:
-	lda #0
-	sec
-	sbc $0424,x
-	sta $0424,x
-	lda #0
-	sbc $042d,x
-	sta $042d,x
-	lda #0
-	sec
-	sbc $0463,x
-	sta $0463,x
-	lda #0
-	sbc $046c,x
-	sta $046c,x
-	lda $31,x
-	and #$40
-	sta $31,x
+lf0de_reversexvelocity:
+	lda #$00	// \
+	sec			// |
+	sbc $0424,x	// | Reverse X Velocity of Object X
+	sta $0424,x	// | (Bounce Horizontally)
+	lda #$00	// |
+	sbc $042d,x	// |
+	sta $042d,x	// /
+	lda #$00	// \
+	sec			// | ?
+	sbc $0463,x	// |
+	sta $0463,x	// /
+	lda #$00	// \
+	sbc $046c,x	// | ?
+	sta $046c,x	// /
+	lda $31,x	// \
+	and #$40	// | ?
+	sta $31,x	// /
 	rts
 //-----------------------
 
-lf107:
-	lda #0
-	sec
-	sbc $0412,x
-	sta $0412,x
-	lda #0
-	sbc $041b,x
-	sta $041b,x
-	rts
+lf107_reverseyvelocity:
+	lda #$00	// \
+	sec			// |
+	sbc $0412,x	// | Reverse Y Velocity of Object X
+	sta $0412,x	// | (Bounce Vertically)
+	lda #$00	// |
+	sbc $041b,x	// |
+	sta $041b,x	// |
+	rts			// /
 //-----------------------
 
 lf119:
 	sta $2d
-	lda $2c
-	bpl lf143
-	lda #0
-	sec
-	sbc $2b
-	sta $2b
-	lda #0
-	sbc $2c
-	sta $2c
+	lda $2c		// \ If Velocity Int >= 0
+	bpl lf143	// / then goto lf143
+	lda #$00	// \
+	sec			// | Get absolute value of Velocity Frac
+	sbc $2b		// |
+	sta $2b		// /
+	lda #$00	// \
+	sbc $2c		// | Get absolute value of Velocity Int
+	sta $2c		// /
 	jsr lf143
-	lda #0
+	lda #$00
 	sec
 	sbc $2e
 	sta $2e
-	lda #0
+	lda #$00
 	sbc $2f
 	sta $2f
-	lda #0
+	lda #$00
 	sbc $30
 	sta $30
 	rts
-//-----------------------
 
 lf143:
-	txa
-	pha
-	lda #0
-	sta $2e
-	sta $2f
-	sta $30
-	ldx #8
+	txa			// \ Push X
+	pha			// /
+	lda #$00	// \
+	sta $2e		// | Init
+	sta $2f		// |
+	sta $30		// /
+	ldx #$08	// \ -Loop 8 times
 lf14f:
-	asl $2e
-	rol $2f
-	rol $30
-	asl $2d
-	bcc lf16c
-	clc
-	lda $2b
-	adc $2e
-	sta $2e
-	lda $2c
-	adc $2f
-	sta $2f
-	lda #0
-	adc $30
-	sta $30
+	asl $2e		// |
+	rol $2f		// |
+	rol $30		// |
+	asl $2d		// |
+	bcc lf16c	// |
+	clc			// |
+	lda $2b		// | Old Velocity Frac
+	adc $2e		// |
+	sta $2e		// |
+	lda $2c		// | Old Velocity Int
+	adc $2f		// |
+	sta $2f		// |
+	lda #$00	// |
+	adc $30		// |
+	sta $30		// |
 lf16c:
-	dex
-	bne lf14f
-	pla
-	tax
+	dex			// |
+	bne lf14f	// /
+	pla			// \ Pull X
+	tax			// /
 	rts
 //-----------------------
 
 lf172:
-	lda $0424,x
-	sta $2b
-	lda $042d,x
-	sta $2c
-	lda #$cd
-	jsr lf119
-	lda $2f
-	sta $0424,x
-	lda $30
-	sta $042d,x
+	lda $0424,x	// \ X Velocity Frac
+	sta $2b		// /
+	lda $042d,x	// \ X Velocity Int
+	sta $2c		// /
+	lda #$cd	// \ ?
+	jsr lf119	// /
+	lda $2f		// \ Update X Velocity Frac
+	sta $0424,x	// /
+	lda $30		// \ Update X Velocity Int
+	sta $042d,x	// /
 	rts
 //-----------------------
 
 lf18c:
-	lda $0412,x
-	sta $2b
-	lda $041b,x
-	sta $2c
-	lda #$cd
-	jsr lf119
-	lda $2f
-	sta $0412,x
-	lda $30
-	sta $041b,x
+	lda $0412,x	// \ Y Velocity Frac
+	sta $2b		// /
+	lda $041b,x	// \ Y Velocity Int
+	sta $2c		// /
+	lda #$cd	// \ ?
+	jsr lf119	// /
+	lda $2f		// \ Update Y Velocity Frac
+	sta $0412,x	// /
+	lda $30		// \ Update Y Velocity Int
+	sta $041b,x	// /
 	rts
 //-----------------------
 
@@ -5737,7 +5774,7 @@ lf221:
 lf238:
 	ldx #$07	// \
 lf23a:
-	lda #$00	// | Initialize variables for each object
+	lda #$00	// | Initialize variables for each object (except Fish?)
 	sta $0448,x	// | - Direction (0 = Left, 1 = Right)
 	sta $0475,x	// |
 	sta $047e,x	// |
@@ -5747,8 +5784,8 @@ lf23a:
 	sta $041b,x	// | - Y Velocity (Int)
 	sta $0463,x	// |
 	sta $046c,x	// |
-	sta $0400,x	// | - X Coordinates (Frac)
-	sta $0409,x	// | - Y Coordinates (Frac)
+	sta $0400,x	// | - X Positions (Frac)
+	sta $0409,x	// | - Y Positions (Frac)
 	lda #$01	// |
 	sta $043f,x	// |
 	sta $045a,x	// |
@@ -5775,7 +5812,7 @@ lf278:
 	lda #$58
 	sta $c6
 lf28e:
-	jsr lf4a5
+	jsr lf4a5_initfish
 	jsr ld8ff
 	lda $16
 	beq lf29b	// Balloon Fight Game Mode
@@ -5925,8 +5962,8 @@ lf386_initializeplayerx:
 	sta $bf,x	// / for Player X
 	lda #$5a	// \
 	ldy $41,x	// | If Player X has lives
-	bpl lf3a1	// | Then set respawn delay to $5A
-	lda #$01	// | Else set respawn delay to $01
+	bpl lf3a1	// | Then set respawn delay to #$5A
+	lda #$01	// | Else set respawn delay to #$01
 lf3a1:
 	sta $c3,x	// /
 	lda #$00
@@ -5972,11 +6009,11 @@ lf3d4:
 	sta $60
 	lda $43
 	sta $61
-	jmp lc12d
+	jmp lc12d_copypputempblock
 lf3ee:
 	lda #$00
 	ldy #$f4
-	jmp lc131
+	jmp lc131_copyppublock
 lf3f5:
     //22 bytes
 db $20,$6c,$08,$19,$11,$0a,$1c,$0e,$25,$00,$00,$20,$6c,$08,$24
@@ -5988,7 +6025,7 @@ lf40b:
 lf410:
 	lda lf43b,x
 	ldy lf43b+2,x
-	jsr lc131
+	jsr lc131_copyppublock
 	dex
 	bpl lf410
 	ldx #$0f
@@ -6005,7 +6042,7 @@ lf41e:
 lf42f:
 	lda lf43f,x
 	sta $58
-	jsr lc12d
+	jsr lc12d_copypputempblock
 	dex
 	bpl lf42f
 	rts
@@ -6066,17 +6103,17 @@ lf4a2:
 	rts
 //-----------------------
 
-lf4a5:	//Fish related (Init?)
+lf4a5_initfish:
 	lda #$01
 	sta $048e
 	sta $048f
 	lda #$ff
 	sta $bb
-	sta $87
+	sta $87		// Fish Status = #$FF
 	sta $048c
 	ldx #$01
-	stx $0459
-	stx $90
+	stx $0459	// Fish Type = #$01
+	stx $90		// Fish Balloons = #$01
 	inx
 	stx $46
 	lda #$40	// \ Set Fish X position
@@ -6956,9 +6993,9 @@ lfb25_music:
 	lsr			// |
 	bcs lfb7c	// | #$08 = Stage Start
 	lsr			// |
-	bcs lfb69	// | #$10 = Bonus Game Perfect
+	bcs lfb69	// | #$10 = Bonus Phase Perfect
 	lsr			// |
-	bcs lfb5e	// | #$20 = Balloon Trip / Bonus Game Music
+	bcs lfb5e	// | #$20 = Balloon Trip / Bonus Phase Music
 	lsr			// |
 	bcs lfb58	// | #$40 = Fish
 	lsr			// |

@@ -114,10 +114,9 @@ arch nes.cpu
 // $00C8 = Phase Type (00 = Regular, 01 = Bonus)
 // $00C9 = Tile Scroll Counter
 // $00CA = Screen Scroll Counter
-
+// $00CB = ???
 // $00CC = Collision related
 // $00CD = Amount of Platforms
-
 // $00CE = Unused
 // $00CF = Unused
 
@@ -215,6 +214,8 @@ arch nes.cpu
 // $0571-$057A = Balloon?
 // $057B-$0584 = Balloon Y positions
 
+// $05CB = ?
+// $05CC = ?
 // $05CD-$05CE = Player 1/2 Touched Balloons Counter
 // $05CE = Balloon Trip Balloon Counter
 
@@ -559,7 +560,11 @@ lc1be:
 	cpx $53		// | If PPU Buffer Position != PPU Buffer Size
 	bne lc188	// / Then Upload more data
 	rts
-//-----------------------
+
+
+//----------------------
+// Balloon Trip Game Mode code
+//----------------------
 
 lc1c5:
 	lda #$20	// \ Play Balloon Trip Music
@@ -815,7 +820,7 @@ lc3b2:
 lc3b5:
     //10 bytes
 dw lc3c9, lc3f7, lc43e, lc45f, lc45e
-//db $c9,$c3, $f7,$c3, $3e,$c4, $5f,$c4, $5e,$c4
+
 lc3bf:
 db $00,$00,$02,$02,$02,$02,$02,$04,$03,$01
 lc3c9:
@@ -1152,7 +1157,7 @@ lc64b_fishmove:
 	sta $99		// /
 lc657:
 	rts
-//-----------------------
+
 
 lc658:
 	lda $0489
@@ -1601,7 +1606,6 @@ lc9b6:
 	adc $04a4,x
 	sta $04a4,x
 	rts
-//-----------------------
 
 lc9dd:
 db $9d,$9e,$9f,$9e,$9d,$a0,$a1,$a0
@@ -1629,49 +1633,47 @@ db $fc,$fc,$99,$99,$fc,$fc,$fc,$9c,$9c,$fc
 lca33:
 db $c0,$40,$00,$80
 lca37:
-	lda $f3
-	ora #$80
-	sta $f3
+	lda $f3		// \
+	ora #$80	// | Play SFX
+	sta $f3		// /
 lca3d:
-	lda #0
+	lda #$00
 	sec
 	sbc $0508,x
 	sta $0508,x
-	lda #0
+	lda #$00
 	sbc $04e0,x
 	sta $04e0,x
 	rts
-//-----------------------
 
 lca4f:
-	lda $f3
-	ora #$80
-	sta $f3
+	lda $f3		// \
+	ora #$80	// | Play SFX
+	sta $f3		// /
 lca55:
-	lda #0
+	lda #$00
 	sec
 	sbc $051c,x
 	sta $051c,x
-	lda #0
+	lda #$00
 	sbc $04f4,x
 	sta $04f4,x
 	rts
-//-----------------------
 
-lca67:
+lca67:		//Lightning Bolt Platform Collision?
 	ldy $cd
 lca69:
-	lda #0
+	lda #$00
 	sta $cc
 	lda ($27),y
 	sec
-	sbc #8
+	sbc #$08
 	cmp $04a4,x
 	bcs lcadd
-	adc #3
+	adc #$03
 	cmp $04a4,x
 	bcc lca82
-	lda #1
+	lda #$01
 	bne lca92
 lca82:
 	lda ($29),y
@@ -1732,8 +1734,6 @@ lcae1:
 	jmp lca69
 lcae7:
 	rts
-//-----------------------
-
 lcae8:
 	lsr $cc
 	bcc lcaf4
@@ -1760,9 +1760,10 @@ lcb0c:
 	jsr lca37
 lcb18:
 	jmp lcae1
-db $60
-lcb1c:
-	ldy #1
+	rts
+
+lcb1c:		// Lightning Bolt Player Collision
+	ldy #$01
 lcb1e:
 	lda $0088,y
 	bmi lcb70
@@ -1803,7 +1804,11 @@ lcb70:
 	dey
 	bpl lcb1e
 	rts
-//-----------------------
+
+
+//----------------------
+// Flipper code
+//----------------------
 
 lcb74_flippermanage:
 	ldx $05d1
@@ -1833,7 +1838,6 @@ lcba4:
 	bpl lcb79
 lcba7:
 	rts
-//-----------------------
 
 lcba8:
 	ldy #7
@@ -1904,14 +1908,12 @@ lcc2f:
 	dey
 	bpl lcbb2
 	rts
-//-----------------------
 
 lcc33:
 	lda $f1
 	ora #2
 	sta $f1
 	rts
-//-----------------------
 
 lcc3a:
 	lda $0088,y
@@ -1980,7 +1982,6 @@ lccb8:
 	jmp lcc3a
 lccbe:
 	rts
-//-----------------------
 
 lccbf:
 	txa
@@ -1992,7 +1993,6 @@ lccbf:
 	pla
 	tax
 	rts
-//-----------------------
 
 lcccb:
 	lda $05f0,x
@@ -2038,7 +2038,6 @@ lcd0f:
 	inc $57
 lcd25:
 	rts
-//-----------------------
 
 lcd26:
 db $a1,$24,$24,$24
@@ -2059,6 +2058,11 @@ db $a6,$a0,$b1,$24
 lcd46:
 db $a7,$24,$24,$24
 
+
+//----------------------
+// Balloon code
+//----------------------
+
 lcd4a_initballoons:
 	ldx #$09	// \ Reset all 10 balloons
 lcd4c:
@@ -2069,14 +2073,11 @@ lcd4c:
 	dex			// |
 	bpl lcd4c	// /
 	rts
-//-----------------------
 
 lcd5a:
 	dec $05cc
 	beq lcd60
 	rts
-//-----------------------
-
 lcd60:
 	lda $1b
 	and #$3f
@@ -2089,8 +2090,6 @@ lcd6b:
 	dex
 	bpl lcd6b
 	rts
-//-----------------------
-
 lcd74:
 	lda #0
 	sta $055d,x
@@ -2116,7 +2115,6 @@ lcda2:
 	sta $05c1,x
 	dec $05cb
 	rts
-//-----------------------
 
 lcdaa:
 	ldx #9
@@ -2180,7 +2178,6 @@ lce22:
 	jmp lcdac
 lce2e:
 	rts
-//-----------------------
 
 lce2f_balloonxspritemanage:
 	ldy $055d,x
@@ -2233,7 +2230,6 @@ lce2f_balloonxspritemanage:
 	sta $025a,y
 	ldx $13
 	rts
-//-----------------------
 
 lce99:
 	lda #$f0
@@ -2245,7 +2241,6 @@ lce99:
 	lda #$fc
 	sta $0259,y
 	rts
-//-----------------------
 
 lceae:
 db $20,$50,$a0,$d0
@@ -2256,6 +2251,7 @@ lcebd:
     //17 bytes
 db $00,$00,$40,$40,$40,$40,$00,$00,$fc,$fc,$df,$fc,$fc,$e0,$e2
 db $e1,$fc
+
 lcece_ballooncollision:
 	ldy #$01
 lced0:
@@ -2292,7 +2288,11 @@ lcf0f:
 	bpl lced0
 lcf12:
 	rts
-//-----------------------
+
+
+//----------------------
+// Bonus Phase code
+//----------------------
 
 lcf13:
 	lda #$20
@@ -2554,6 +2554,7 @@ ld121:
 	rts
 //-----------------------
 
+ld12b:
     //19 bytes
 db $3f,$00,$10,$0f,$30,$30,$30,$0f,$30,$27,$15,$0f,$30,$02,$21
 db $0f,$16,$16,$16
@@ -2570,6 +2571,7 @@ db $22,$c6,$17,$1c,$1e,$19,$0e,$1b,$24,$0b,$18,$17,$1e,$1c,$24
 db $24,$24,$01,$00,$00,$00,$00,$19,$1d,$1c,$2c
 ld19e:
 db $50,$70
+
 ld1a0:
 	ldx #$1c
 ld1a2:
@@ -2587,7 +2589,6 @@ ld1a2:
 	lda $40
 	bne ld1c2
 	rts
-//-----------------------
 
 ld1c2:
 	lda #$65
@@ -4689,8 +4690,8 @@ le9b6:
 	sta $042d,x
 	sta $0463,x
 	sta $046c,x
-	lda #$40
-	sta $f1
+	lda #$40	// \ Play SFX
+	sta $f1		// /
 le9f2:
 	rts
 le9f3:
@@ -4716,7 +4717,11 @@ lea15:
 	sta $7f,x
 lea17:
 	rts
-//-----------------------
+
+
+//----------------------
+// Object Code
+//----------------------
 
 lea18_objectupdateanim:
 	cpx #$02	// \ Object is not Player

@@ -20,8 +20,8 @@ arch nes.cpu
 // $0014 = (Temp?)
 // $0015 = (Temp) Player X, Balloon Trip Ranking Scores
 // $0016 = Game Mode (0 = Balloon Fight, 1 = Balloon Trip)
-// $0017 = Scrolling (Balloon Trip)
-// $0018 = PPUCTRL Shadow (Balloon Trip?)
+// $0017 = PPUSCROLL X Shadow (Balloon Trip)
+// $0018 = PPUCTRL Shadow (Balloon Trip)
 // $0019 = Frame Counter
 // $001A = Unused
 // $001B = RNG Output/Seed?
@@ -31,6 +31,7 @@ arch nes.cpu
 // $0021 = Top Score Pointer
 // $0023 = Left Side   - Platform Collision Pointer
 // $0025 = Right Side  - Platform Collision Pointer
+//			Also used for Balloon Trip Screen loading
 // $0027 = Top Side    - Platform Collision Pointer
 // $0029 = Bottom Side - Platform Collision Pointer
 
@@ -100,24 +101,19 @@ arch nes.cpu
 // $00B5-$00B7 = Cloud related
 // $00B8 = ?
 // $00B9 = Unused?
-// $00BA = ?
-
-// $00BB = Fish?
+// $00BA = 10 Screens Scrolled Counter?
+// $00BB = Water Plonk Animation Frame
 // $00BC = ?
-// $00BD = Player 1 Invincibility Flag
-// $00BE = Player 2 Invincibility Flag
-// $00BF = Player 1 Invincibility Time
-// $00C0 = Player 2 Invincibility Time
-// $00C1 = Player 1 Freeze Flag
-// $00C2 = Player 2 Freeze Flag
-// $00C3 = Player 1 Respawn Delay
-// $00C4 = Player 2 Respawn Delay
+// $00BD-$00BE = Player 1/2 Invincibility Flag
+// $00BF-$00C0 = Player 1/2 Invincibility Time
+// $00C1-$00C2 = Player 1/2 Freeze Flag
+// $00C3-$00C4 = Player 1/2 Respawn Delay
 // $00C5 = Fish?
 // $00C6 = ???
 // $00C7 = ???
 // $00C8 = Phase Type (00 = Regular, 01 = Bonus)
-// $00C9 = ???
-// $00CA = ???
+// $00C9 = Tile Scroll Counter
+// $00CA = Screen Scroll Counter
 
 // $00CC = Collision related
 // $00CD = Amount of Platforms
@@ -189,7 +185,7 @@ arch nes.cpu
 // $047E-$0486 = ?
 
 // $0487 = ???
-// $0488 = ???
+// $0488 = Balloon Trip Starting Platform X Position
 // $0489 = ???
 // $048A = ???
 // $048B = Fish Target ID (Object ID)
@@ -200,43 +196,41 @@ arch nes.cpu
 
 // $0490-$04A3 = Lightning Bolt X Position
 // $04A4-$04B7 = Lightning Bolt Y Position
-// $04B8-$04CB = Lightning Bolt Horizontal Direction
+// $04B8-$04CB = Lightning Bolt Horizontal Direction (Velocity?)
 // $04CC-$04DF = ?
 // $04E0-$04F3 = ?
-// $04F4-$0507 = Lightning Bolt Vertical Direction
+// $04F4-$0507 = Lightning Bolt Vertical Direction (Velocity?)
 // $0508-$051B = Lightning Bolt Type?
 // $051C-$052F = ?
 // $0530-$0543 = Lightning Bolt Animation Frame
 // $0544-$0557 = Lightning Bolt?
 
 // $0558 = Bonus Phase Intensity Level
-// $0559 = Bonus Phase x00 points per balloon
+// $0559 = Bonus Phase / Balloon Trip x00 points per balloon
 // $055A = Balloon Rising Speed
 // $055B = Bonus Phase Super Bonus x0000 points
 // $055C = Bonus Phase Super Bonus 0x000 points
-// $055D-$0566 = Balloon GFX
+// $055D-$0566 = Balloon GFX (Type? Status?)
 // $0567-$0570 = Balloon X positions
 // $0571-$057A = Balloon?
 // $057B-$0584 = Balloon Y positions
 
-// $05CD = ?
-// $05CE = ?
+// $05CD-$05CE = Player 1/2 Touched Balloons Counter
+// $05CE = Balloon Trip Balloon Counter
 
 // $05D1 = Amount of Flippers
 // $05D2-$05DB = Flipper X positions
 // $05DC-$05E5 = Flipper Y positions
+// $05E6-$05EF = ?
+// $05F0-$05F9 = ?
+// $05FA-$0603 = Flippers Type
 
-// $05FA = Flippers Type
 
-// $0618 = ?
-// $0619 = ?
-// $061A = ?
-// $061B = ?
+// $0618-$0619 = ?
+// $061A-$061B = ?
 
-// $061C = Controller 1 Pressed Buttons
-// $061D = Controller 2 Pressed Buttons
-// $061E = Controller 1 Held Buttons
-// $061F = Controller 2 Held Buttons
+// $061C-$061D = Controller 1/2 Pressed Buttons
+// $061E-$061F = Controller 1/2 Held Buttons
 // $0620-$0628 = ???
 // $0629 = Highest 1-Player Game Top Score
 // $062E = Highest 2-Player Game Top Score
@@ -594,22 +588,22 @@ lc1c5:
 	jsr lf4a5_initfish
 	ldx #$13	// \
 lc1fc:
-	lda #$ff	// |
-	sta $0530,x	// | ?
+	lda #$ff	// | Reset All Lightning Bolts
+	sta $0530,x	// | Animation Frame = -1
 	lda #$f0	// |
-	sta $04a4,x	// |
+	sta $04a4,x	// | No Vertical Direction?
 	dex			// |
 	bpl lc1fc	// /
 lc209:
 	jsr lf470_pause
-	jsr le691
+	jsr le691_objectmanage
 	lda $c5
 	bne lc216
 	jsr lc6f9_fishmanage
 lc216:
-	lda $19
-	lsr
-	bcs lc21e
+	lda $19		// \ Every 2 frames?
+	lsr			// |
+	bcs lc21e	// /
 	jmp lc2d0
 lc21e:
 	lda $c5
@@ -619,110 +613,110 @@ lc21e:
 lc227:
 	lda $17
 	bne lc231
-	lda $18
-	eor #1
-	sta $18
+	lda $18		// \ Toggle between
+	eor #$01	// | nametable 0 and 1
+	sta $18		// /
 lc231:
-	dec $17
-	lda $0488
-	beq lc24d
-	inc $0488
-	lda $0488
-	cmp #$f0
-	bcc lc247
-	lda #0
-	sta $0488
+	dec $17		// Scroll 1 pixel to the left
+	lda $0488	// \ Skip if starting platform
+	beq lc24d	// / does not exist
+	inc $0488	// Scroll starting platform 1px to the right
+	lda $0488	// \
+	cmp #$f0	// | If Starting Platform reaches
+	bcc lc247	// | X position #$F0
+	lda #$00	// | then disappear
+	sta $0488	// /
 lc247:
-	lda $bd
-	beq lc24d
-	inc $91
+	lda $bd		// \ If Player is invincible
+	beq lc24d	// | (has not yet moved)
+	inc $91		// / then scroll 1px to the right
 lc24d:
-	ldx #7
+	ldx #$07
 lc24f:
-	lda $055d,x
-	bmi lc26d
-	inc $0567,x
-	lda $0567,x
-	cmp #$f8
-	bne lc26d
-	lda #$ff
-	sta $055d,x
-	lda #$f0
-	sta $057b,x
-	lda #0
-	sta $05ce
+	lda $055d,x	// \ If balloon doesn't exist
+	bmi lc26d	// / skip to the next one
+	inc $0567,x	// Scroll balloon 1px to the right
+	lda $0567,x	// \
+	cmp #$f8	// | If balloon's X position
+	bne lc26d	// | reaches #$F8
+	lda #$ff	// | then make it disappear
+	sta $055d,x	// |
+	lda #$f0	// |
+	sta $057b,x	// | And reset the balloon counter
+	lda #$00	// |
+	sta $05ce	// /
 lc26d:
-	dex
-	bpl lc24f
+	dex			// \ Check next balloon
+	bpl lc24f	// /
 	ldx #$13
 lc272:
-	lda $0530,x
-	bmi lc289
-	inc $0490,x
-	lda $0490,x
-	cmp #$f8
-	bcc lc289
-	lda #$f0
-	sta $04a4,x
-	sta $0530,x
+	lda $0530,x	// \ If Lightning Bolt doesn't exist
+	bmi lc289	// / then skip to next one
+	inc $0490,x	// Scroll Bolt 1 pixel to the right
+	lda $0490,x	// \
+	cmp #$f8	// | If bolt's X position
+	bcc lc289	// | reaches #$F8
+	lda #$f0	// | then make it disappear
+	sta $04a4,x	// |
+	sta $0530,x	// /
 lc289:
-	dex
-	bpl lc272
-	lda $17
-	and #7
-	bne lc2d0
-	ldx $88
-	dex
-	bmi lc2d0
-	lda #0
-	sta $3e
-	lda #1
-	jsr ld6de_scoreadd
-	inc $c9
-	lda $c9
-	and #$1f
-	bne lc2bc
-	inc $ca
-	lda $ca
-	cmp #$0a
-	bne lc2bc
-	lda #2
-	sta $ca
-	ldy $ba
-	iny
-	tya
-	and #3
-	sta $ba
+	dex			// \ Check next bolt
+	bpl lc272	// /
+	lda $17		// \ Every 8 pixel scrolled
+	and #$07	// |
+	bne lc2d0	// /
+	ldx $88		// \ If Player still has balloons
+	dex			// |
+	bmi lc2d0	// /
+	lda #$00			// \
+	sta $3e				// | Add 10 to Player 1 Score
+	lda #$01			// |
+	jsr ld6de_scoreadd	// /
+	inc $c9		// Increment Tile Scroll Counter
+	lda $c9		// \
+	and #$1f	// | If 32 tiles have been scrolled
+	bne lc2bc	// /
+	inc $ca		// Increment Screen Scroll Counter
+	lda $ca		// \
+	cmp #$0a	// | If 10 screens have been scrolled
+	bne lc2bc	// /
+	lda #$02	// \ Then reset to Screen #$02
+	sta $ca		// /
+	ldy $ba		// \
+	iny			// | And increment something?
+	tya			// |
+	and #$03	// |
+	sta $ba		// /
 lc2bc:
-	ldx $ca
-	lda lc3bf,x
-	asl
-	tay
-	lda lc3b5,y
-	sta $25
-	lda lc3b5+1,y
-	sta $26
-	jsr lc3b2
+	ldx $ca			// \
+	lda lc3bf,x		// |
+	asl				// |
+	tay				// | ?
+	lda lc3b5,y		// |
+	sta $25			// |
+	lda lc3b5+1,y	// |
+	sta $26			// |
+	jsr lc3b2		// /
 lc2d0:
-	ldx #7
+	ldx #$07
 lc2d2:
-	lda $055d,x
-	bmi lc2ef
-	jsr lcece
-	lda $05cd
-	beq lc2ef
-	dec $05cd
-	inc $05ce
-	txa
-	pha
-	lda $0559
-	jsr ld6de_scoreadd
-	pla
-	tax
+	lda $055d,x	// \ If Balloon X does not exist
+	bmi lc2ef	// / then skip collision check
+	jsr lcece_ballooncollision
+	lda $05cd	// \
+	beq lc2ef	// | Every balloon touched
+	dec $05cd	// | counts towards the
+	inc $05ce	// / counter
+	txa			// \ Push X
+	pha			// /
+	lda $0559			// \ Add Score
+	jsr ld6de_scoreadd	// /
+	pla			// \ Pull X
+	tax			// /
 lc2ef:
 	jsr lce2f_balloonxspritemanage
-	dex
-	bpl lc2d2
+	dex			// \ Check next balloon
+	bpl lc2d2	// /
 	ldx #$13
 lc2f7:
 	lda $0530,x
@@ -731,7 +725,7 @@ lc2f7:
 	bne lc314
 	jsr lc9b6
 	lda $04a4,x
-	cmp #2
+	cmp #$02
 	bcs lc30d
 	jsr lca4f
 lc30d:
@@ -742,7 +736,7 @@ lc314:
 	jsr lcb1c
 lc317:
 	lda $19
-	and #7
+	and #$07
 	lsr
 	tay
 	lda lc9dd,y
@@ -764,7 +758,7 @@ lc32d:
 	sta $02b0,y
 	lda $0490,x
 	sta $02b3,y
-	lda #0
+	lda #$00
 	sta $02b2,y
 	dex
 	bpl lc2f7
@@ -772,7 +766,7 @@ lc32d:
 	cmp #$14
 	bcc lc36f
 	inc $47
-	lda #0
+	lda #$00
 	jsr ld6de_scoreadd
 	dec $47
 	lda #$10
@@ -782,7 +776,7 @@ lc32d:
 	jsr lc527_setbonuspts10
 	dec $c8
 	ldx #$64
-	jsr lf45e
+	jsr lf45e_waityframes
 	lda #$20
 	sta $f2
 lc36f:
@@ -810,35 +804,154 @@ lc378:
 	jmp lc209
 lc3a1:
 	jsr lc579_rankscoreupdate
-	lda #1
+	lda #$01
 	sta $f0
 	jsr lf465_clearframeflag
-	lda #2
-	sta $f2
+	lda #$02	// \ Play Stage Clear jingle
+	sta $f2		// /
 	jmp lf36a
 lc3b2:
 	jmp ($0025)
 lc3b5:
     //10 bytes
-db $c9,$c3,$f7,$c3,$3e,$c4,$5f,$c4,$5e,$c4
+dw lc3c9, lc3f7, lc43e, lc45f, lc45e
+//db $c9,$c3, $f7,$c3, $3e,$c4, $5f,$c4, $5e,$c4
 lc3bf:
-    //360 bytes
-db $00,$00,$02,$02,$02,$02,$02,$04,$03,$01,$a0,$00,$b1,$23,$e6
-db $23,$d0,$02,$e6,$24,$aa,$f0,$20,$0a,$0a,$0a,$85,$15,$a9,$00
-db $85,$14,$8a,$29,$c0,$c9,$80,$d0,$06,$20,$6b,$c4,$4c,$c9,$c3
-db $c9,$00,$d0,$06,$20,$86,$c4,$4c,$c9,$c3,$60,$20,$b3,$f1,$29
-db $7f,$c9,$04,$90,$0c,$c9,$18,$b0,$08,$0a,$0a,$0a,$85,$15,$20
-db $6b,$c4,$20,$b3,$f1,$29,$3f,$c9,$02,$90,$24,$c9,$18,$b0,$20
-db $0a,$0a,$0a,$85,$15,$20,$b3,$f1,$29,$3f,$a6,$ba,$7d,$3a,$c4
-db $85,$14,$20,$86,$c4,$20,$b3,$f1,$4a,$90,$d9,$20,$4f,$ca,$4c
-db $0c,$c4,$60,$20,$30,$40,$60,$20,$b3,$f1,$29,$cf,$d0,$b2,$a4
-db $89,$c8,$d0,$ad,$a9,$e6,$85,$9b,$a5,$1b,$29,$7f,$69,$40,$85
-db $92,$a9,$80,$85,$89,$a9,$00,$85,$80,$60,$20,$0c,$c4,$20,$b3
-db $f1,$29,$7f,$9d,$08,$05,$60,$a2,$07,$bd,$5d,$05,$30,$04,$ca
-db $10,$f8,$60,$a9,$01,$9d,$5d,$05,$a9,$00,$9d,$67,$05,$a5,$15
-db $9d,$7b,$05,$60,$a2,$13,$bd,$30,$05,$30,$04,$ca,$10,$f8,$60
-db $a9,$00,$9d,$30,$05,$9d,$90,$04,$9d,$f4,$04,$9d,$08,$05,$9d
-db $e0,$04,$a5,$14,$9d,$1c,$05,$a5,$15,$9d,$a4,$04,$60,$00,$00
+db $00,$00,$02,$02,$02,$02,$02,$04,$03,$01
+lc3c9:
+	ldy #$00
+	lda ($23),y
+	inc $23
+	bne lc3d3
+	inc $24
+lc3d3:
+	tax
+	beq lc3f6
+	asl
+	asl
+	asl
+	sta $15
+	lda #$00
+	sta $14
+	txa
+	and #$c0
+	cmp #$80
+	bne lc3ec
+	jsr lc46b
+	jmp lc3c9
+lc3ec:
+	cmp #$00
+	bne lc3f6
+	jsr lc486
+	jmp lc3c9
+lc3f6:
+	rts
+
+lc3f7:
+	jsr lf1b3_rng
+	and #$7f
+	cmp #$04
+	bcc lc40c
+	cmp #$18
+	bcs lc40c
+	asl
+	asl
+	asl
+	sta $15
+	jsr lc46b
+lc40c:
+	jsr lf1b3_rng
+	and #$3f
+	cmp #$02
+	bcc lc439
+	cmp #$18
+	bcs lc439
+	asl
+	asl
+	asl
+	sta $15
+	jsr lf1b3_rng
+	and #$3f
+	ldx $ba
+	adc lc43a,x
+	sta $14
+	jsr lc486
+	jsr lf1b3_rng
+	lsr
+	bcc lc40c
+	jsr lca4f
+	jmp lc40c
+lc439:
+	rts
+lc43a:
+db $20,$30,$40,$60
+
+lc43e:
+	jsr lf1b3_rng
+	and #$cf
+	bne lc3f7
+	ldy $89
+	iny
+	bne lc3f7
+	lda #$e6
+	sta $9b
+	lda $1b
+	and #$7f
+	adc #$40
+	sta $92
+	lda #$80
+	sta $89
+	lda #$00
+	sta $80
+lc45e:
+	rts
+
+lc45f:
+	jsr lc40c
+	jsr lf1b3_rng
+	and #$7f
+	sta $0508,x
+	rts
+
+lc46b:
+	ldx #$07
+lc46d:
+	lda $055d,x
+	bmi lc476
+	dex
+	bpl lc46d
+	rts
+lc476:
+	lda #$01
+	sta $055d,x
+	lda #$00
+	sta $0567,x
+	lda $15
+	sta $057b,x
+	rts
+lc486:
+	ldx #$13
+lc488:
+	lda $0530,x
+	bmi lc491
+	dex
+	bpl lc488
+	rts
+lc491:
+	lda #$00
+	sta $0530,x
+	sta $0490,x
+	sta $04f4,x
+	sta $0508,x
+	sta $04e0,x
+	lda $14
+	sta $051c,x
+	lda $15
+	sta $04a4,x
+	rts
+
+lc4ad:
+db $00,$00
 db $09,$00,$08,$8c,$00,$07,$18,$00,$18,$00,$19,$00,$1a,$00,$84
 db $94,$1a,$00,$1a,$00,$1a,$00,$0b,$12,$00,$0c,$13,$00,$0d,$14
 db $00,$14,$00,$00,$90,$00,$07,$00,$07,$8c,$96,$00,$08,$00,$09
@@ -847,6 +960,7 @@ db $00,$00,$00,$08,$00,$09,$98,$00,$0a,$00,$00,$00,$86,$8a,$15
 db $00,$14,$00,$8e,$13,$00,$00,$03,$0d,$00,$0d,$0e,$00,$0c,$0d
 db $00,$0d,$19,$00,$86,$92,$00,$00,$98,$00,$00,$0a,$12,$00,$09
 db $13,$00,$08,$14,$00,$07,$15,$00,$07,$16,$00,$07,$00,$00,$00
+
 lc527_setbonuspts10:
 	jsr ld0e2_setbonusphase	// Set up Balloon Points
 	asl $0559	// \
@@ -1273,7 +1387,7 @@ lc821:
 	sta $f0
 	jmp lc77a
 
-lc831:
+lc831_cloudmanage:
 	lda $b8
 	cmp #$01
 	bne lc88a
@@ -1691,7 +1805,7 @@ lcb70:
 	rts
 //-----------------------
 
-lcb74:	// Flippers
+lcb74_flippermanage:
 	ldx $05d1
 	bmi lcba7
 lcb79:
@@ -2060,7 +2174,7 @@ lce1d:
 	sta $055d,x
 lce22:
 	jsr lce2f_balloonxspritemanage
-	jsr lcece
+	jsr lcece_ballooncollision
 	dex
 	bmi lce2e
 	jmp lcdac
@@ -2142,8 +2256,8 @@ lcebd:
     //17 bytes
 db $00,$00,$40,$40,$40,$40,$00,$00,$fc,$fc,$df,$fc,$fc,$e0,$e2
 db $e1,$fc
-lcece:
-	ldy #1
+lcece_ballooncollision:
+	ldy #$01
 lced0:
 	lda $0088,y
 	bmi lcf0f
@@ -2168,13 +2282,11 @@ lced0:
 	sta $055d,x
 	lda $05cd,y
 	clc
-	adc #1
+	adc #$01
 	sta $05cd,y
-	lda #2
+	lda #$02
 	sta $f0
 	rts
-//-----------------------
-
 lcf0f:
 	dey
 	bpl lced0
@@ -2204,7 +2316,7 @@ lcf34:
 	jsr lf470_pause
 	inc $4c
 	jsr ld8dd
-	jsr le691
+	jsr le691_objectmanage
 	lda $05cb
 	beq lcf47
 	jsr lcd5a
@@ -2223,7 +2335,7 @@ lcf51:
 	jsr ld246_clearppu
 	ldx #2
 	stx $46
-	jsr lf45e
+	jsr lf45e_waityframes
 	lda #$2b
 	ldy #$d1
 	jsr lc131_copyppublock
@@ -2262,7 +2374,7 @@ lcfb5:
 	jsr lce2f_balloonxspritemanage
 	dex
 	bpl lcfb5
-	jsr lf45c
+	jsr lf45c_wait20frames
 	lda #$2b
 	sta $57
 	lda #$24
@@ -2283,7 +2395,7 @@ lcfb5:
 	lda $05ce
 	jsr ld1c9
 lcfe8:
-	jsr lf45c
+	jsr lf45c_wait20frames
 	lda $0559
 	sta $57
 	lda #0
@@ -2314,14 +2426,14 @@ ld01d:
 	lda #2
 	sta $f0
 	ldx #2
-	jsr lf45e
+	jsr lf45e_waityframes
 	ldx $40
 ld02e:
 	jsr lce2f_balloonxspritemanage
 	dex
 	bpl ld02e
 	jsr ld1a0
-	jsr lf45c
+	jsr lf45c_wait20frames
 	lda #1
 	sta $f0
 	jsr ld121
@@ -2345,7 +2457,7 @@ ld04f:
 	sta $f2
 ld068:
 	ldx #$78
-	jsr lf45e
+	jsr lf45e_waityframes
 	jsr ld1a0
 ld070:
 	lda #0
@@ -2365,7 +2477,7 @@ ld08e:
 	lda #1
 	sta $f1
 	ldx #2
-	jsr lf45e
+	jsr lf45e_waityframes
 	lda $5d
 	cmp #$24
 	bne ld070
@@ -2376,7 +2488,7 @@ ld08e:
 	bne ld070
 ld0a8:
 	ldx #$0a
-	jsr lf45e
+	jsr lf45e_waityframes
 	jsr ld121
 	bne ld0ce
 	lda $055b
@@ -2391,7 +2503,7 @@ ld0c0:
 	bpl ld0c0
 	lda #1
 	sta $f1
-	jsr lf45c
+	jsr lf45c_wait20frames
 ld0ce:
 	lda #0
 	sta $47
@@ -2756,8 +2868,8 @@ ld39a:
 	sta $81,x	// / (02 = Sitting)
 	lda #$01	// \ Initialize Enemy Balloons
 	sta $8a,x	// / (01 = Sitting/Umbrella)
-	lda $c6
-	sta $0441,x
+	lda $c6		// \ Initialize Enemy ?
+	sta $0441,x	// /
 	dex
 	bpl ld39a	// Load another enemy data
 ld3ba:
@@ -4069,7 +4181,7 @@ le5ad:
 	lda $19
 	and #$03
 	bne le5c4
-	dec $bb
+	dec $bb		// Go to next water plonk animation frame
 le5c4:
 	rts
 //-----------------------
@@ -4078,7 +4190,8 @@ le5c5:
 db $fd,$ed,$e0,$d6,$cf
 le5ca:
     //55 bytes
-db $e5,$e5,$e5,$e5,$e5,$d0,$ae,$03,$04,$f0,$f0,$f0,$c8,$af,$03
+db $e5,$e5,$e5,$e5,$e5
+db $d0,$ae,$03,$04,$f0,$f0,$f0,$c8,$af,$03
 db $04,$d0,$b0,$03,$04,$f0,$f0,$c8,$b1,$03,$fc,$c8,$b2,$03,$04
 db $d0,$b3,$03,$04,$f0,$c8,$b4,$03,$00,$c8,$b4,$43,$08,$d0,$b5
 db $03,$00,$d0,$b5,$43,$08,$f0,$f0,$f0,$f0
@@ -4119,7 +4232,7 @@ le685:
     //12 bytes
 db $ff,$ff,$ff,$fe,$ff,$ff,$ff,$fe,$fe,$01,$fe,$fe
 
-le691:
+le691_objectmanage:
 	jsr lee25_collision
 	ldx #$07	// \
 le696:
@@ -4714,8 +4827,8 @@ leadc:
 	bcc leb0d
 	lda #$ff
 	sta $88,x
-	lda #4
-	sta $bb
+	lda #$04	// \ Do Water Plonk
+	sta $bb		// / Animation
 	lda $91,x
 	sta $bc
 	cpx #2
@@ -5801,9 +5914,9 @@ lf28e:
 	jmp lc1c5	// Balloon Trip Game Mode
 lf29b:
 	lda $c8
-	beq lf2a2	// Normal Phase Type
+	beq lf2a2_balloonfight_load	// Normal Phase Type
 	jmp lcf13	// Bonus Phase Type
-lf2a2:
+lf2a2_balloonfight_load:
 	jsr lc716
 	lda $3b		// \ Level Header?
 	and #$03	// |
@@ -5811,12 +5924,12 @@ lf2a2:
 	lda #$08	// \
 	sta $f2		// / Play Stage Start jingle
 	ldx $3a		// \
-	bne lf2b9	// / Demo Flag
+	bne lf2b9_balloonfight_loop	// / Demo Flag
 lf2b3:
 	lda #$ff	// \ Show Phase Number for
 	sta $3d		// / 255 frames
 	inc $3c		// Increment Current Phase Number
-lf2b9:
+lf2b9_balloonfight_loop:	// Balloon Fight Game Loop
 	jsr lf470_pause
 	lda $3d					// \
 	beq lf2c5				// | Display Phase Number
@@ -5824,14 +5937,14 @@ lf2b9:
 	jsr lf3cc_phasedisplay	// /
 lf2c5:
 	jsr lf1b3_rng
-	jsr le691
+	jsr le691_objectmanage
 	jsr lc6f9_fishmanage
 	jsr lc790
-	jsr lc831
+	jsr lc831_cloudmanage
 	jsr lc8b7
 	jsr ld8dd
 	jsr le587
-	jsr lcb74
+	jsr lcb74_flippermanage
 	inc $4c
 	ldx $40		// X = 2 Player Flag
 lf2e4:
@@ -5860,16 +5973,16 @@ lf30d:
 	dex			// \ Loop with Player 1
 	bpl lf2e4	// /
 	lda $41		// \ If Player 1 has lives
-	bpl lf318	// /
-	lda $42		// \ If Player 2 has lives
-	bmi lf366	// /
+	bpl lf318	// / continue
+	lda $42		// \ If Player 1 & 2 have 0 lives
+	bmi lf366	// / then game over
 lf318:
 	lda $3a		// \ If Demo Play
 	beq lf327	// / then skip joypad read
 	jsr le768_polljoypad0
 	lda $061c	// \
 	and #$30	// | If START or SELECT is pressed
-	beq lf2b9	// / then loop
+	beq lf2b9_balloonfight_loop	// / then loop
 lf326:
 	rts
 lf327:
@@ -5877,58 +5990,58 @@ lf327:
 lf329:
 	lda $8a,x	// \ If Enemy Balloons
 	beq lf32f	// | == 0 then ?
-	bpl lf2b9	// /  > 0 then loop
+	bpl lf2b9_balloonfight_loop	// /  > 0 then loop
 lf32f:
 	dex			// \ Check next enemy
 	bpl lf329	// /
-	lda $bb		// If all enemies are dead?
-	bpl lf2b9	// loop
-	ldx $40
+	lda $bb		// Loop if water plonk effect
+	bpl lf2b9_balloonfight_loop	// is not finished yet.
+	ldx $40		// Player Check
 lf338:
-	ldy $88,x
-	dey
-	bpl lf34c
-	lda $41,x
-	bmi lf34c
-	lda #$ff
-	sta $88,x
-	lda #$01
-	sta $c3,x
-	jmp lf2b9
+	ldy $88,x	// \ If Player X has balloons
+	dey			// | then 
+	bpl lf34c	// /
+	lda $41,x	// \ If Player X has no lives
+	bmi lf34c	// / then skip
+	lda #$ff	// \ Set Player X balloons
+	sta $88,x	// / to none
+	lda #$01	// \ Set Player X Respawn Delay
+	sta $c3,x	// / to 1 frame
+	jmp lf2b9_balloonfight_loop	// loop
 lf34c:
-	dex
-	bpl lf338
-	lda #$02
-	sta $f2
+	dex			// \ Loop player checks until
+	bpl lf338	// / we can assume phase is cleared.
+	lda #$02	// \ Play Stage Clear jingle
+	sta $f2		// /
 lf353:
-	ldx #$96
-	jsr lf45e
-	ldx $3b
-	inx
-	cpx #$10
-	bne lf361
-	ldx #$04
+	ldx #$96				// \ Wait 150 frames
+	jsr lf45e_waityframes	// /
+	ldx $3b		// \
+	inx			// | Get to next level
+	cpx #$10	// | if past level ID #$10
+	bne lf361	// |
+	ldx #$04	// | then loop back to level ID #$04
 lf361:
-	stx $3b
-	jmp lf213
-lf366:
-	lda #$01
-	sta $f2
+	stx $3b		// /
+	jmp lf213	// Load Next Level
+lf366:		// Manage Game Over
+	lda #$01	// \ Play Game Over jingle
+	sta $f2		// /
 lf36a:
 	lda #$00
-	sta $17
-	sta $18
-	sta $15
-	jsr lf40b
+	sta $17		// Reset PPUSCROLL Shadow
+	sta $18		// Reset PPUCTRL Shadow
+	sta $15		// Set time
+	jsr lf40b_uploadgameovertext
 lf375:
 	jsr lf465_clearframeflag
-	jsr le768_polljoypad0
-	and #$30
-	bne lf383
-	dec $15
-	bne lf375
+	jsr le768_polljoypad0	// \ Press START or SELECT
+	and #$30				// | to come back to Title Screen
+	bne lf383				// /
+	dec $15		// \ Wait for 256 frames
+	bne lf375	// / to come back to Title Screen
 lf383:
-	jmp lf1d4
+	jmp lf1d4	// Back to Title Screen
 
 lf386_initializeplayerx:
 	lda $41,x	// \ If Player X has negative lives
@@ -5999,47 +6112,49 @@ db $20,$6c,$08,$19,$11,$0a,$1c,$0e,$25,$00,$00
 lf400:	// $206C - $08 - "        "
 db $20,$6c,$08,$24,$24,$24,$24,$24,$24,$24,$24
 
-lf40b:
+lf40b_uploadgameovertext:
 	jsr lf465_clearframeflag
-	ldx #1
+	ldx #$01				// \
 lf410:
-	lda lf43b,x
-	ldy lf43b+2,x
-	jsr lc131_copyppublock
-	dex
-	bpl lf410
-	ldx #$0f
+	lda lf43b,x				// | Prepare Game Over
+	ldy lf43b+2,x			// | PPU blocks
+	jsr lc131_copyppublock	// | to upload
+	dex						// |
+	bpl lf410				// /
+	ldx #$0f	// \
 lf41e:
-	lda #$24
-	sta $5a,x
-	dex
-	bpl lf41e
-	lda #$10
-	sta $59
-	lda #$21
-	sta $57
-	ldx #2
+	lda #$24	// | Prepare 16 empty tiles
+	sta $5a,x	// | to upload
+	dex			// |
+	bpl lf41e	// /
+	lda #$10	// \ Size: 16 bytes
+	sta $59		// /
+	lda #$21	// \ PPUADDR = $21xx
+	sta $57		// /
+	ldx #$02					// \
 lf42f:
-	lda lf43f,x
-	sta $58
-	jsr lc12d_copypputempblock
-	dex
-	bpl lf42f
+	lda lf43f,x					// | Prepare uploading
+	sta $58						// | empty tiles to nametable
+	jsr lc12d_copypputempblock	// | ($2188, $21A8, $21E8)
+	dex							// | to PPU Buffer
+	bpl lf42f					// /
 	rts
-//-----------------------
 
-lf43b:
+lf43b:	// Pointers to PPU Blocks
 db $42,$55,$f4,$f4
-lf43f:
-    //29 bytes
-db $88,$a8,$e8,$21,$c8,$10,$24,$24,$24,$10,$0a,$16,$0e,$24,$24
-db $18,$1f,$0e,$1b,$24,$24,$24,$23,$da,$04,$aa,$aa,$aa,$aa
-lf45c:
+lf43f:	// Empty tiles lower PPUADDR
+db $88,$a8,$e8
+lf442:	// "   GAME  OVER   "
+db $21,$c8,$10,$24,$24,$24,$10,$0a,$16,$0e,$24,$24,$18,$1f,$0e,$1b,$24,$24,$24
+lf455:	// Tile Attributes?
+db $23,$da,$04,$aa,$aa,$aa,$aa
+
+lf45c_wait20frames:
 	ldx #$14
-lf45e:
+lf45e_waityframes:
 	jsr lf465_clearframeflag
 	dex
-	bne lf45e
+	bne lf45e_waityframes
 	rts
 //-----------------------
 
@@ -6087,8 +6202,8 @@ lf4a5_initfish:
 	lda #$01
 	sta $048e
 	sta $048f
-	lda #$ff
-	sta $bb
+	lda #$ff	// \ Reset Water Plonk Animation
+	sta $bb		// /
 	sta $87		// Fish Status = #$FF
 	sta $048c
 	ldx #$01

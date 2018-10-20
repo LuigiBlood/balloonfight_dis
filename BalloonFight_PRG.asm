@@ -1,6 +1,7 @@
 //Balloon Fight (USA) Disassembly - PRG ROM
 //-----------------------
-//disassembled by nesrevplus v0.3b (2018-09-18 16:39, 5ms)
+//Starting disassembly with nesrevplus v0.3b (2018-09-18 16:39, 5ms)
+//Manual disassembly and commenting by LuigiBlood
 
 arch nes.cpu
 
@@ -101,19 +102,19 @@ arch nes.cpu
 // $00B5-$00B7 = Cloud related
 // $00B8 = ?
 // $00B9 = Unused?
-// $00BA = 10 Screens Scrolled Counter?
+// $00BA = 10 Screens Scrolled Counter? (Balloon Trip)
 // $00BB = Water Plonk Animation Frame
 // $00BC = ?
 // $00BD-$00BE = Player 1/2 Invincibility Flag
 // $00BF-$00C0 = Player 1/2 Invincibility Time
 // $00C1-$00C2 = Player 1/2 Freeze Flag
 // $00C3-$00C4 = Player 1/2 Respawn Delay
-// $00C5 = Fish?
+// $00C5 = Lock Scrolling Time (Balloon Trip)
 // $00C6 = ???
 // $00C7 = ???
 // $00C8 = Phase Type (00 = Regular, 01 = Bonus)
-// $00C9 = Tile Scroll Counter
-// $00CA = Screen Scroll Counter
+// $00C9 = Tile Scroll Counter (Balloon Trip)
+// $00CA = Screen Scroll Counter (Balloon Trip)
 // $00CB = ???
 // $00CC = Collision related
 // $00CD = Amount of Platforms
@@ -193,14 +194,14 @@ arch nes.cpu
 // $048E = Fish?
 // $048F = Fish?
 
-// $0490-$04A3 = Lightning Bolt X Position
-// $04A4-$04B7 = Lightning Bolt Y Position
-// $04B8-$04CB = Lightning Bolt Horizontal Direction (Velocity?)
-// $04CC-$04DF = ?
-// $04E0-$04F3 = ?
-// $04F4-$0507 = Lightning Bolt Vertical Direction (Velocity?)
-// $0508-$051B = Lightning Bolt Type?
-// $051C-$052F = ?
+// $0490-$04A3 = Lightning Bolt X Position (Int)
+// $04A4-$04B7 = Lightning Bolt Y Position (Int)
+// $04B8-$04CB = Lightning Bolt X Position (Frac)
+// $04CC-$04DF = Lightning Bolt Y Position (Frac)
+// $04E0-$04F3 = Lightning Bolt X Velocity (Int)
+// $04F4-$0507 = Lightning Bolt Y Velocity (Int)
+// $0508-$051B = Lightning Bolt X Velocity (Frac)
+// $051C-$052F = Lightning Bolt Y Velocity (Frac)
 // $0530-$0543 = Lightning Bolt Animation Frame
 // $0544-$0557 = Lightning Bolt?
 
@@ -579,16 +580,16 @@ lc1c5:
 	sta $24		// /
 	lda #$80	// \ Set Player 1 X Position
 	sta $91		// / to #$80
-	sta $0488	// Set Player 1 Direction to #$80 (?)
+	sta $0488	// Set Balloon Trip Starting Platform X Position to #$80
 	lda #$70	// \ Set Player 1 Y Position
 	sta $9a		// / to #$70
 	jsr lcd4a_initballoons
 	lda #$00
 	sta $41		// 0 Lives to Player 1
-	sta $c9 
-	sta $ca
-	sta $ba
-	sta $c5
+	sta $c9		// Init Tile Scroll Counter
+	sta $ca		// Init Screen Scroll Counter
+	sta $ba		// Init 10 Screens Counter?
+	sta $c5		// Init Scrolling Lock Time
 	sta $c8		// Phase Type = 0
 	jsr lf4a5_initfish
 	ldx #$13	// \
@@ -602,27 +603,27 @@ lc1fc:
 lc209:
 	jsr lf470_pause
 	jsr le691_objectmanage
-	lda $c5
-	bne lc216
+	lda $c5		// If Screen is locked
+	bne lc216	// then don't manage Fish
 	jsr lc6f9_fishmanage
 lc216:
-	lda $19		// \ Every 2 frames?
-	lsr			// |
+	lda $19		// \ Manage Screen Scrolling and stuff
+	lsr			// | every 2 frames...
 	bcs lc21e	// /
 	jmp lc2d0
 lc21e:
-	lda $c5
-	beq lc227
-	dec $c5
+	lda $c5		// \ ...unless the scrolling
+	beq lc227	// | is locked
+	dec $c5		// /
 	jmp lc2d0
 lc227:
-	lda $17
-	bne lc231
-	lda $18		// \ Toggle between
+	lda $17		// \ If the scrolling X position
+	bne lc231	// | is 0 then
+	lda $18		// | Toggle between
 	eor #$01	// | nametable 0 and 1
 	sta $18		// /
 lc231:
-	dec $17		// Scroll 1 pixel to the left
+	dec $17		// Scroll 1 pixel from the left
 	lda $0488	// \ Skip if starting platform
 	beq lc24d	// / does not exist
 	inc $0488	// Scroll starting platform 1px to the right
@@ -696,9 +697,9 @@ lc2bc:
 	ldx $ca			// \
 	lda lc3bf,x		// |
 	asl				// |
-	tay				// | ?
-	lda lc3b5,y		// |
-	sta $25			// |
+	tay				// | Manage Screens?
+	lda lc3b5,y		// | Jump to subroutines
+	sta $25			// | dedicated to each screen?
 	lda lc3b5+1,y	// |
 	sta $26			// |
 	jsr lc3b2		// /
@@ -711,7 +712,7 @@ lc2d2:
 	lda $05cd	// \
 	beq lc2ef	// | Every balloon touched
 	dec $05cd	// | counts towards the
-	inc $05ce	// / counter
+	inc $05ce	// / main counter
 	txa			// \ Push X
 	pha			// /
 	lda $0559			// \ Add Score
@@ -724,19 +725,19 @@ lc2ef:
 	bpl lc2d2	// /
 	ldx #$13
 lc2f7:
-	lda $0530,x
-	bmi lc317
-	lda $c5
-	bne lc314
-	jsr lc9b6
-	lda $04a4,x
-	cmp #$02
-	bcs lc30d
-	jsr lca4f
+	lda $0530,x	// \ If Lightning Bolt exists?
+	bmi lc317	// /
+	lda $c5		// \ If Scrolling is locked
+	bne lc314	// /
+	jsr lc9b6	// Update Lightning Bolt Position
+	lda $04a4,x	// \
+	cmp #$02	// | If Y pos < #$02
+	bcs lc30d	// | then
+	jsr lca4f	// / Bounce Lightning Bolt Vertically
 lc30d:
-	cmp #$d8
-	bcc lc314
-	jsr lca4f
+	cmp #$d8	// \ If Y pos >= #$D8
+	bcc lc314	// | then
+	jsr lca4f	// / Bounce Lightning Bolt Vertically
 lc314:
 	jsr lcb1c
 lc317:
@@ -765,56 +766,57 @@ lc32d:
 	sta $02b3,y
 	lda #$00
 	sta $02b2,y
-	dex
-	bpl lc2f7
-	lda $05ce
-	cmp #$14
-	bcc lc36f
-	inc $47
-	lda #$00
-	jsr ld6de_scoreadd
-	dec $47
-	lda #$10
-	sta $f2
-	inc $c8
-	jsr ld3ed
+	dex			// \ Loop to next bolt
+	bpl lc2f7	// /
+
+	lda $05ce	// \ If you touched
+	cmp #$14	// | 20 balloons in a row...
+	bcc lc36f	// /
+	inc $47				// \ Add 10000
+	lda #$00			// | to score
+	jsr ld6de_scoreadd	// /
+	dec $47		// Reset score to add
+	lda #$10	// \ Play Bonus Phase Perfect jingle
+	sta $f2		// /
+	inc $c8		// Bonus Phase Type?
+	jsr ld3ed	// Update Balloon Palette?
 	jsr lc527_setbonuspts10
 	dec $c8
-	ldx #$64
-	jsr lf45e_waityframes
-	lda #$20
-	sta $f2
+	ldx #$64				// \ Wait for 100 frames
+	jsr lf45e_waityframes	// /
+	lda #$20	// \ Play Balloon Trip Music
+	sta $f2		// /
 lc36f:
-	ldx #$f0
-	lda $0488
-	beq lc378
-	ldx #$88
+	ldx #$f0	// \ If Balloon Trip Starting Platform
+	lda $0488	// | X position is 0
+	beq lc378	// / then don't make it appear on screen
+	ldx #$88	// \ At Y position #$88:
 lc378:
-	stx $0200
-	stx $0204
-	sta $0203
-	clc
-	adc #8
-	sta $0207
-	lda $19
-	and #3
-	sta $0202
-	sta $0206
-	ldx #$e3
-	stx $0201
-	inx
-	stx $0205
-	lda $88
-	bmi lc3a1
-	jmp lc209
+	stx $0200	// | Display Left and Right
+	stx $0204	// / sides of Platform
+	sta $0203	// \
+	clc			// | Display Left and Right
+	adc #$08	// | sides at current X position
+	sta $0207	// /
+	lda $19		// \
+	and #$03	// | Switch between palettes
+	sta $0202	// | on platform
+	sta $0206	// /
+	ldx #$e3	// \
+	stx $0201	// | Display Tile #$E3 and #$E4
+	inx			// |
+	stx $0205	// /
+	lda $88		// \ If Player is dead (no balloons)
+	bmi lc3a1	// / then game over
+	jmp lc209	// else game loop
 lc3a1:
 	jsr lc579_rankscoreupdate
-	lda #$01
-	sta $f0
+	lda #$01	// \ Play SFX
+	sta $f0		// /
 	jsr lf465_clearframeflag
 	lda #$02	// \ Play Stage Clear jingle
 	sta $f2		// /
-	jmp lf36a
+	jmp lf36a	// Put Game Over on Screen
 lc3b2:
 	jmp ($0025)
 lc3b5:
@@ -1591,20 +1593,20 @@ lc9b5:
 //-----------------------
 
 lc9b6:
-	lda $0508,x
-	clc
-	adc $04b8,x
-	sta $04b8,x
-	lda $04e0,x
-	adc $0490,x
-	sta $0490,x
-	lda $051c,x
-	clc
-	adc $04cc,x
-	sta $04cc,x
-	lda $04f4,x
-	adc $04a4,x
-	sta $04a4,x
+	lda $0508,x	// \
+	clc			// | Update X Position (Frac)
+	adc $04b8,x	// |
+	sta $04b8,x	// /
+	lda $04e0,x	// \
+	adc $0490,x	// | Update X Position (Int)
+	sta $0490,x	// /
+	lda $051c,x	// \
+	clc			// | Update Y Position (Frac)
+	adc $04cc,x	// |
+	sta $04cc,x	// /
+	lda $04f4,x	// \
+	adc $04a4,x	// | Update Y Position (Int)
+	sta $04a4,x	// /
 	rts
 
 lc9dd:
@@ -1632,18 +1634,19 @@ lca29:
 db $fc,$fc,$99,$99,$fc,$fc,$fc,$9c,$9c,$fc
 lca33:
 db $c0,$40,$00,$80
+
 lca37:
 	lda $f3		// \
 	ora #$80	// | Play SFX
 	sta $f3		// /
 lca3d:
-	lda #$00
-	sec
-	sbc $0508,x
-	sta $0508,x
-	lda #$00
-	sbc $04e0,x
-	sta $04e0,x
+	lda #$00	// \
+	sec			// |
+	sbc $0508,x	// | Lightning Bolt
+	sta $0508,x	// | Reverse X Velocity
+	lda #$00	// |
+	sbc $04e0,x	// |
+	sta $04e0,x	// /
 	rts
 
 lca4f:
@@ -1651,13 +1654,13 @@ lca4f:
 	ora #$80	// | Play SFX
 	sta $f3		// /
 lca55:
-	lda #$00
-	sec
-	sbc $051c,x
-	sta $051c,x
-	lda #$00
-	sbc $04f4,x
-	sta $04f4,x
+	lda #$00	// \
+	sec			// |
+	sbc $051c,x	// | Lightning Bolt
+	sta $051c,x	// | Reverse Y Velocity
+	lda #$00	// |
+	sbc $04f4,x	// |
+	sta $04f4,x	// /
 	rts
 
 lca67:		//Lightning Bolt Platform Collision?
@@ -2533,7 +2536,7 @@ ld0e2_setbonusphase:
 	inc $0558	// /
 ld104:
 	lda #$00	// \
-	sta $05cd	// | ?
+	sta $05cd	// | Initialize Balloon Counters
 	sta $05ce	// /
 	rts
 
@@ -3281,7 +3284,7 @@ ld6e5:
 	lda #$06	// | [$21] = 06XX
 	sta $22		// /
 	lda $3e		// \
-	asl			// | Select Score ???
+	asl			// | Select Score to update
 	asl			// | X = [$3E] * 5
 	ora $3e		// |
 	tax			// /

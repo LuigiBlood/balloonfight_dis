@@ -92,18 +92,18 @@ arch nes.cpu
 // $0091-$0099 = Object X Positions (Int)
 // $009A-$00A2 = Object Y Positions (Int)
 
-// $00A3 = Amount of Clouds
-// $00A4 = Current Cloud ID? (Blink?)
-// $00A5 = Current Cloud ID?? (Lightning?)
+// $00A3 = Amount of Clouds (zero-based) (-1 if none)
+// $00A4 = Selected Cloud ID? (Blink?)
+// $00A5 = Selected Cloud ID?? (Lightning?)
 // $00A6-$00A8 = Cloud 16x16 Tile Attribute $23xx (Top?)
 // $00A9-$00AB = Cloud 16x16 Tile Attribute $23xx
 // $00AC-$00AE = Cloud 16x16 Tile Attribute $23xx
 // $00AF-$00B1 = Cloud 16x16 Tile Attribute $23xx
 // $00B2-$00B4 = Cloud related
 // $00B5-$00B7 = Cloud related
-// $00B8 = ?
+// $00B8 = Lightning Bolt Countdown
 // $00B9 = Unused?
-// $00BA = Lightning Bolt Intensity
+// $00BA = Lightning Bolt Intensity (Speed)
 // $00BB = Water Plonk Animation Frame
 // $00BC = ?
 // $00BD-$00BE = Player 1/2 Invincibility Flag
@@ -733,7 +733,7 @@ lc2f7:
 	bmi lc317	// /
 	lda $c5		// \ If Scrolling is locked
 	bne lc314	// /
-	jsr lc9b6	// Update Lightning Bolt Position
+	jsr lc9b6_boltupdate	// Update Lightning Bolt Position
 	lda $04a4,x	// \
 	cmp #$02	// | If Y pos < #$02
 	bcs lc30d	// | then
@@ -1268,7 +1268,7 @@ lc70d:
 // Lightning Bolts Code
 //----------------------
 
-lc716:
+lc716_initcloudbolt:
 	ldx #$01	// \
 lc718:
 	lda #$ff	// | Reset 2 Lightning Bolts
@@ -1276,23 +1276,23 @@ lc718:
 	sta $0544,x	// |
 	dex			// |
 	bpl lc718	// /
-	jsr lc77a
+	jsr lc77a_cloudboltselect	// Select Cloud that sends the bolt?
 lc726:
 	ldx $3c		// \
 	cpx #$18	// | There are only 25 (#$18) phases
 	bcc lc72e	// | X = Current Phase OR X = 24
 	ldx #$18	// /
 lc72e:
-	lda lc748,x
-	sta $ba
-	lda lc761,x
-	sta $b8
+	lda lc748,x	// \ Change Lightning Bolt Intensity
+	sta $ba		// /
+	lda lc761,x	// \ Change Lightning Bolt Countdown
+	sta $b8		// / depending on current phase
 	lda #$f0	// \
 	sta $02e0	// | Hide last 3 sprites
 	sta $02e4	// |
 	sta $02e8	// /
 	lda #$03
-	jmp lc856
+	jmp lc856	// Blink selected cloud
 lc748:
     //25 bytes
 db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$01,$01,$01,$01
@@ -1302,31 +1302,31 @@ lc761:
 db $0f,$0f,$0c,$0c,$0c,$0c,$0a,$0a,$0a,$0a,$0c,$0c,$0a,$0a,$0a
 db $08,$0a,$0a,$08,$08,$08,$08,$08,$08,$05
 
-lc77a:
-	lda $a3		//Randomly select a cloud to send bolts?
-	bpl lc781
+lc77a_cloudboltselect:	// Randomly select a cloud to send bolts?
+	lda $a3		// \ If there are clouds then select one
+	bpl lc781	// / else don't do anything
 lc77e:
-	sta $a4
+	sta $a4		// Select Cloud
 	rts
 lc781:
 	jsr lf1b3_rng
 lc784:
-	cmp $a3		// \
-	bcc lc77e	// | RNG? <= [$A3]
+	cmp $a3		// \ If RNG value <= amount of Clouds
+	bcc lc77e	// | then select cloud based on value
 	beq lc77e	// /
-	clc
-	sbc $a3
-	jmp lc784
+	clc			// \ Subtract to the RNG
+	sbc $a3		// | the amount of clouds
+	jmp lc784	// / until the condition is right
 
-lc790:
+lc790_cloudbolt:
 	lda $19		// \
-	and #$7f	// | Every 128 frames
+	and #$7f	// | Every 128 frames...
 	beq lc797	// /
 lc796:
 	rts
 lc797:
-	dec $b8
-	bne lc796
+	dec $b8		// \ Do Lightning Bolt Countdown
+	bne lc796	// / ...once it reaches zero...
 	ldx #$00
 	lda $0530,x
 	bmi lc7ad
@@ -1363,7 +1363,7 @@ lc7b4:
 	lda lc8b1,y
 	sta $04f4,x
 	jsr lf1b3_rng
-	and #3
+	and #$03
 	sta $0544,x
 	tay
 	lda lc897,y
@@ -1383,31 +1383,31 @@ lc811:
 	jsr lca55
 lc819:
 	lda $ba
-	cmp #5
+	cmp #$05
 	bcs lc821
 	inc $ba
 lc821:
-	lda #6
+	lda #$06
 	sec
 	sbc $ba
 	sta $b8
 	lda $f0
-	ora #4
+	ora #$04
 	sta $f0
-	jmp lc77a
+	jmp lc77a_cloudboltselect
 
-lc831_cloudmanage:
-	lda $b8
-	cmp #$01
-	bne lc88a
-	lda $0530
-	bmi lc846
-	lda $0531
-	bmi lc846
-	lda #$02
-	sta $b8
+lc831_cloudblink:
+	lda $b8		// \ If Lightning Bolt Countdown != 1
+	cmp #$01	// | then return
+	bne lc88a	// /
+	lda $0530	// \ If Lightning Bolt 0 doesn't exist
+	bmi lc846	// / then prepare for one
+	lda $0531	// \ If Lightning Bolt 1 doesn't exist
+	bmi lc846	// / then prepare for one
+	lda #$02	// \ Else up the countdown to 2
+	sta $b8		// /
 	rts
-lc846:	//Cloud related
+lc846:
 	lda $19		// \
 	and #$7f	// | If Frame Counter < 64
 	cmp #$40	// | then don't do anything
@@ -1421,8 +1421,8 @@ lc856:
 	tax
 	lda lc88b,x
 	sta $5a
-	ldx $a4
-	bmi lc88a
+	ldx $a4		// \ Blink the selected cloud
+	bmi lc88a	// /
 	lda #$23	// \
 	sta $57		// | Set Tile Attribute Palette
 	lda $a6,x	// | at PPUADDR[$23xx], Size = 1
@@ -1534,7 +1534,7 @@ lc937:
 	bcs lc941
 	jmp lc9af
 lc941:
-	jsr lc9b6
+	jsr lc9b6_boltupdate
 	lda $0490,x
 	cmp #$02
 	bcs lc94e
@@ -1594,7 +1594,7 @@ lc9b5:
 	rts
 //-----------------------
 
-lc9b6:
+lc9b6_boltupdate:
 	lda $0508,x	// \
 	clc			// | Update X Position (Frac)
 	adc $04b8,x	// |
@@ -5930,7 +5930,7 @@ lf29b:
 	beq lf2a2_balloonfight_load	// Normal Phase Type
 	jmp lcf13	// Bonus Phase Type
 lf2a2_balloonfight_load:
-	jsr lc716
+	jsr lc716_initcloudbolt
 	lda $3b		// \ Level Header?
 	and #$03	// |
 	bne lf2b3	// /
@@ -5952,8 +5952,8 @@ lf2c5:
 	jsr lf1b3_rng
 	jsr le691_objectmanage
 	jsr lc6f9_fishmanage
-	jsr lc790
-	jsr lc831_cloudmanage
+	jsr lc790_cloudbolt
+	jsr lc831_cloudblink
 	jsr lc8b7
 	jsr ld8dd
 	jsr le587

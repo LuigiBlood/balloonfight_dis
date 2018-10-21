@@ -31,8 +31,9 @@ arch nes.cpu
 // $001F = Graphics/Enemy Data Pointer
 // $0021 = Top Score Pointer
 // $0023 = Left Side   - Platform Collision Pointer
+//			Also used for Balloon Trip Screen Layout?
 // $0025 = Right Side  - Platform Collision Pointer
-//			Also used for Balloon Trip Screen loading
+//			Also used for Balloon Trip Screen Layout Functions
 // $0027 = Top Side    - Platform Collision Pointer
 // $0029 = Bottom Side - Platform Collision Pointer
 
@@ -102,7 +103,7 @@ arch nes.cpu
 // $00B5-$00B7 = Cloud related
 // $00B8 = ?
 // $00B9 = Unused?
-// $00BA = 10 Screens Scrolled Counter? (Balloon Trip)
+// $00BA = Lightning Bolt Intensity
 // $00BB = Water Plonk Animation Frame
 // $00BC = ?
 // $00BD-$00BE = Player 1/2 Invincibility Flag
@@ -202,7 +203,7 @@ arch nes.cpu
 // $04F4-$0507 = Lightning Bolt Y Velocity (Int)
 // $0508-$051B = Lightning Bolt X Velocity (Frac)
 // $051C-$052F = Lightning Bolt Y Velocity (Frac)
-// $0530-$0543 = Lightning Bolt Animation Frame
+// $0530-$0543 = Lightning Bolt Animation Frame?
 // $0544-$0557 = Lightning Bolt?
 
 // $0558 = Bonus Phase Intensity Level
@@ -654,6 +655,7 @@ lc24f:
 lc26d:
 	dex			// \ Check next balloon
 	bpl lc24f	// /
+
 	ldx #$13
 lc272:
 	lda $0530,x	// \ If Lightning Bolt doesn't exist
@@ -668,6 +670,7 @@ lc272:
 lc289:
 	dex			// \ Check next bolt
 	bpl lc272	// /
+
 	lda $17		// \ Every 8 pixel scrolled
 	and #$07	// |
 	bne lc2d0	// /
@@ -689,17 +692,17 @@ lc289:
 	lda #$02	// \ Then reset to Screen #$02
 	sta $ca		// /
 	ldy $ba		// \
-	iny			// | And increment something?
-	tya			// |
+	iny			// | Increment
+	tya			// | Lightning Bolt Intensity Level
 	and #$03	// |
 	sta $ba		// /
 lc2bc:
 	ldx $ca			// \
 	lda lc3bf,x		// |
 	asl				// |
-	tay				// | Manage Screens?
+	tay				// | Manage Screen Layout
 	lda lc3b5,y		// | Jump to subroutines
-	sta $25			// | dedicated to each screen?
+	sta $25			// | dedicated to each screen layout
 	lda lc3b5+1,y	// |
 	sta $26			// |
 	jsr lc3b2		// /
@@ -723,6 +726,7 @@ lc2ef:
 	jsr lce2f_balloonxspritemanage
 	dex			// \ Check next balloon
 	bpl lc2d2	// /
+
 	ldx #$13
 lc2f7:
 	lda $0530,x	// \ If Lightning Bolt exists?
@@ -739,33 +743,33 @@ lc30d:
 	bcc lc314	// | then
 	jsr lca4f	// / Bounce Lightning Bolt Vertically
 lc314:
-	jsr lcb1c
+	jsr lcb1c_bolt_playercollision
 lc317:
-	lda $19
-	and #$07
-	lsr
-	tay
-	lda lc9dd,y
-	pha
-	lda $19
-	lsr
-	txa
-	bcc lc32d
-	sta $12
-	lda #$13
-	sbc $12
+	lda $19		// \
+	and #$07	// | Get Lightning Bolt
+	lsr			// | Animation Frame Tile
+	tay			// |
+	lda lc9dd,y	// | (Unused Note: Animation is 8 frames
+	pha			// / but only half of them are used.)
+	lda $19		// \
+	lsr			// | Every 2 frames...
+	txa			// |
+	bcc lc32d	// /
+	sta $12		// \
+	lda #$13	// | ...count from the end
+	sbc $12		// /
 lc32d:
-	asl
-	asl
-	tay
-	pla
-	sta $02b1,y
-	lda $04a4,x
-	sta $02b0,y
-	lda $0490,x
-	sta $02b3,y
-	lda #$00
-	sta $02b2,y
+	asl			// \
+	asl			// | Get OAM Sprite Address
+	tay			// /
+	pla			// \ Update Lightning Bolt Sprite
+	sta $02b1,y	// / Tile ID
+	lda $04a4,x	// \
+	sta $02b0,y	// / Y position
+	lda $0490,x	// \
+	sta $02b3,y	// / X position
+	lda #$00	// \
+	sta $02b2,y	// / Use Palette 4
 	dex			// \ Loop to next bolt
 	bpl lc2f7	// /
 
@@ -778,10 +782,10 @@ lc32d:
 	dec $47		// Reset score to add
 	lda #$10	// \ Play Bonus Phase Perfect jingle
 	sta $f2		// /
-	inc $c8		// Bonus Phase Type?
-	jsr ld3ed	// Update Balloon Palette?
+	inc $c8		// Set Bonus Phase Type
+	jsr ld3ed_setpalette	// Update Balloon Palette
 	jsr lc527_setbonuspts10
-	dec $c8
+	dec $c8		// Reset to Normal Phase
 	ldx #$64				// \ Wait for 100 frames
 	jsr lf45e_waityframes	// /
 	lda #$20	// \ Play Balloon Trip Music
@@ -825,136 +829,138 @@ dw lc3c9, lc3f7, lc43e, lc45f, lc45e
 
 lc3bf:
 db $00,$00,$02,$02,$02,$02,$02,$04,$03,$01
+
 lc3c9:
-	ldy #$00
-	lda ($23),y
-	inc $23
-	bne lc3d3
-	inc $24
+	ldy #$00	// \
+	lda ($23),y	// | Read Layout Data Byte
+	inc $23		// | [$23] and Increment
+	bne lc3d3	// | Bit format: BL0YYYYY
+	inc $24		// / B = Balloon, L = Lightning Bolt, Y = Tile Y Position
 lc3d3:
 	tax
-	beq lc3f6
-	asl
-	asl
-	asl
-	sta $15
-	lda #$00
-	sta $14
+	beq lc3f6	// If Layout Byte = 00 then return
+	asl			// \
+	asl			// | Set Y position
+	asl			// |
+	sta $15		// /
+	lda #$00	// \
+	sta $14		// /
 	txa
-	and #$c0
-	cmp #$80
-	bne lc3ec
-	jsr lc46b
-	jmp lc3c9
+	and #$c0	// \
+	cmp #$80	// | If bit B is set
+	bne lc3ec	// | then
+	jsr lc46b	// / Spawn Balloon
+	jmp lc3c9	// Repeat
 lc3ec:
-	cmp #$00
-	bne lc3f6
-	jsr lc486
-	jmp lc3c9
+	cmp #$00	// \ If bit L is set
+	bne lc3f6	// | then
+	jsr lc486	// / Spawn Lightning Bolt
+	jmp lc3c9	// Repeat
 lc3f6:
 	rts
 
 lc3f7:
-	jsr lf1b3_rng
-	and #$7f
-	cmp #$04
-	bcc lc40c
-	cmp #$18
-	bcs lc40c
-	asl
-	asl
-	asl
-	sta $15
-	jsr lc46b
+	jsr lf1b3_rng	// \
+	and #$7f		// |
+	cmp #$04		// |
+	bcc lc40c		// | If RNG value is between
+	cmp #$18		// | 4 and 23
+	bcs lc40c		// |
+	asl				// | then spawn Balloon
+	asl				// | at Tile Y position value
+	asl				// |
+	sta $15			// |
+	jsr lc46b		// /
 lc40c:
-	jsr lf1b3_rng
-	and #$3f
-	cmp #$02
-	bcc lc439
-	cmp #$18
-	bcs lc439
-	asl
-	asl
-	asl
-	sta $15
-	jsr lf1b3_rng
-	and #$3f
-	ldx $ba
-	adc lc43a,x
-	sta $14
-	jsr lc486
-	jsr lf1b3_rng
-	lsr
-	bcc lc40c
-	jsr lca4f
-	jmp lc40c
+	jsr lf1b3_rng	// \
+	and #$3f		// |
+	cmp #$02		// | If RNG value is between
+	bcc lc439		// | 2 and 23
+	cmp #$18		// |
+	bcs lc439		// |
+	asl				// | then spawn Lightning Bolt
+	asl				// | at Tile Y position value
+	asl				// | and set Y velocity value
+	sta $15			// | using lc43a value
+	jsr lf1b3_rng	// | (depending on full loop)
+	and #$3f		// | + RNG value up to 63
+	ldx $ba			// |
+	adc lc43a,x		// |
+	sta $14			// |
+	jsr lc486		// /
+	jsr lf1b3_rng	// \
+	lsr				// | Make Y velocity value negative
+	bcc lc40c		// | 50% of the time
+	jsr lca4f		// |
+	jmp lc40c		// /
 lc439:
 	rts
 lc43a:
 db $20,$30,$40,$60
 
 lc43e:
-	jsr lf1b3_rng
-	and #$cf
-	bne lc3f7
-	ldy $89
-	iny
-	bne lc3f7
-	lda #$e6
-	sta $9b
-	lda $1b
-	and #$7f
-	adc #$40
-	sta $92
-	lda #$80
-	sta $89
-	lda #$00
-	sta $80
+	jsr lf1b3_rng	// \ Only bits 00XX0000 have to be set
+	and #$cf		// | else spawn something at random
+	bne lc3f7		// /
+	ldy $89		// \ If Player 2 exists (???)
+	iny			// |
+	bne lc3f7	// /
+	lda #$e6	// \ Player 2 Y Position = $E6
+	sta $9b		// /
+	lda $1b		// \
+	and #$7f	// | Player 2 X Position = $40 + RNG (up to 127)
+	adc #$40	// |
+	sta $92		// /
+	lda #$80	// \ Player 2 Balloons = -128
+	sta $89		// /
+	lda #$00	// \ Player 2 Status = 00
+	sta $80		// /
 lc45e:
 	rts
 
 lc45f:
-	jsr lc40c
-	jsr lf1b3_rng
-	and #$7f
-	sta $0508,x
+	jsr lc40c		// Randomly Spawn Lightning Bolt
+	jsr lf1b3_rng	// \
+	and #$7f		// | Set X Velocity (Frac)
+	sta $0508,x		// / RNG up to 127
 	rts
 
 lc46b:
-	ldx #$07
+	ldx #$07	// \
 lc46d:
-	lda $055d,x
-	bmi lc476
-	dex
-	bpl lc46d
+	lda $055d,x	// | Find Balloon that
+	bmi lc476	// | hasn't spawned yet
+	dex			// |
+	bpl lc46d	// /
 	rts
 lc476:
-	lda #$01
-	sta $055d,x
-	lda #$00
-	sta $0567,x
-	lda $15
-	sta $057b,x
+	lda #$01	// \ Set Balloon Type/GFX? to 01
+	sta $055d,x	// /
+	lda #$00	// \ Set Balloon X position to 00
+	sta $0567,x	// /
+	lda $15		// \ Set Balloon Y position to [$15]
+	sta $057b,x	// /
 	rts
+
 lc486:
-	ldx #$13
+	ldx #$13	// \
 lc488:
-	lda $0530,x
-	bmi lc491
-	dex
-	bpl lc488
+	lda $0530,x	// | Find Lightning Bolt
+	bmi lc491	// | that hasn't spawned yet
+	dex			// |
+	bpl lc488	// /
 	rts
 lc491:
 	lda #$00
-	sta $0530,x
-	sta $0490,x
-	sta $04f4,x
-	sta $0508,x
-	sta $04e0,x
-	lda $14
-	sta $051c,x
-	lda $15
-	sta $04a4,x
+	sta $0530,x	// Set Animation Frame to 00
+	sta $0490,x	// Set X position to 00
+	sta $04f4,x	// Set Y velocity to 00
+	sta $0508,x	// \ Set X velocity to 00 (Int and Frac)
+	sta $04e0,x	// /
+	lda $14		// \ Set Y velocity (Frac) to [$14]
+	sta $051c,x	// /
+	lda $15		// \ Set Y position to [$15]
+	sta $04a4,x	// /
 	rts
 
 lc4ad:
@@ -977,7 +983,6 @@ lc527_setbonuspts10:
 	adc $0559	// |
 	sta $0559	// /
 	rts
-//-----------------------
 
 lc539_rankupdate:
 	lda #$00	// \ Set Balloon Trip Rank 01 (00 + 1)
@@ -1018,7 +1023,6 @@ lc563:
 	pla					// |
 	sta $12				// /
 	rts
-//-----------------------
 
 lc579_rankscoreupdate:
 	jsr lc539_rankupdate	// Update Balloon Trip Rank
@@ -1558,7 +1562,7 @@ lc962:
 	jmp lc9af
 lc976:
 	jsr lca67
-	jsr lcb1c
+	jsr lcb1c_bolt_playercollision
 	ldy $0530,x
 	iny
 	tya
@@ -1765,47 +1769,47 @@ lcb18:
 	jmp lcae1
 	rts
 
-lcb1c:		// Lightning Bolt Player Collision
+lcb1c_bolt_playercollision:		// Lightning Bolt Player Collision
 	ldy #$01
 lcb1e:
-	lda $0088,y
-	bmi lcb70
-	beq lcb70
-	lda $00bd,y
-	bne lcb70
-	lda $0490,x
-	sec
-	sbc $0091,y
-	jsr lf08e_abs
-	cmp #8
-	bcs lcb70
-	lda $04a4,x
-	sec
-	sbc $009a,y
-	sec
-	sbc #8
-	jsr lf08e_abs
-	cmp #$0c
-	bcs lcb70
-	lda #0
-	sta $0088,y
-	lda #1
-	sta $007f,y
-	sta $00c1,y
+	lda $0088,y	// \
+	bmi lcb70	// | If Player Y has balloons...
+	beq lcb70	// /
+	lda $00bd,y	// \ and if Player Y is not invincible...
+	bne lcb70	// /
+	lda $0490,x		// \
+	sec				// | If Player Y's X position
+	sbc $0091,y		// | is within the X position
+	jsr lf08e_abs	// | of Lightning Bolt X
+	cmp #$08		// | (size 8 pixels)
+	bcs lcb70		// /
+	lda $04a4,x		// \
+	sec				// |
+	sbc $009a,y		// | If Player Y's Y position
+	sec				// | is within the Y position
+	sbc #$08		// | of Lightning Bolt X
+	jsr lf08e_abs	// | (size 12 pixels high
+	cmp #$0c		// | to take balloons into account)
+	bcs lcb70		// /
+	lda #$00
+	sta $0088,y	// Player Y's balloons = 00
+	lda #$01
+	sta $007f,y	// Player Y's status = 01 
+	sta $00c1,y	// Player Y's freeze flag = 01
 	lda #$0b
-	sta $0451,y
+	sta $0451,y	// Player Y's type = 0B
 	lda #$20
-	sta $045a,y
-	lda $f0
-	ora #$80
-	sta $f0
-	lda #$f0
-	sta $04a4,x
-	lda #$ff
-	sta $0530,x
+	sta $045a,y	// Player Y's ? = 20
+	lda $f0		// \
+	ora #$80	// | Play SFX
+	sta $f0		// /
+	lda #$f0	// \
+	sta $04a4,x	// | Lightning Bolt X
+	lda #$ff	// | disappears
+	sta $0530,x	// /
 lcb70:
-	dey
-	bpl lcb1e
+	dey			// \ Check next player
+	bpl lcb1e	// /
 	rts
 
 
@@ -2896,53 +2900,53 @@ ld3ba:
 	sty $2a						// /
 ld3e1:
 	jsr ld5d9
-	jsr ld3ed
+	jsr ld3ed_setpalette
 	jsr lc104_enablenmi
 	jmp lc115
 
-ld3ed:
-	ldx #$22
+ld3ed_setpalette:
+	ldx #$22	// \
 ld3ef:
-	lda ld437,x
-	sta $57,x
-	dex
-	bpl ld3ef
-	lda $c8
-	bne ld410
-	lda $3b
-	and #$0c
-	ora #3
-	tay
-	ldx #3
+	lda ld437,x	// | Copy ld437 (Palette)
+	sta $57,x	// | to PPU Temp Block
+	dex			// |
+	bpl ld3ef	// /
+	lda $c8		// \ Check Phase Type...
+	bne ld410	// /
+	lda $3b		// \ ...If Normal Phase
+	and #$0c	// | Select Palette based
+	ora #$03	// | on current level header
+	tay			// /
+	ldx #$03	// \
 ld404:
-	lda ld45a,y
-	sta $5a,x
-	dey
-	dex
-	bpl ld404
+	lda ld45a,y	// | Copy Single Palette Data
+	sta $5a,x	// | to Background Palette 1
+	dey			// | to PPU Temp Block
+	dex			// |
+	bpl ld404	// /
 ld40d:
 	jmp lc12d_copypputempblock
 ld410:
-	ldx $0558
-	lda ld46a,x
-	sta $1d
-	lda ld46f,x
-	sta $1e
-	ldx #3
-	ldy #7
+	ldx $0558	// ...If Bonus Phase
+	lda ld46a,x	// \
+	sta $1d		// | Select Balloon Palette
+	lda ld46f,x	// | based on Intensity Level
+	sta $1e		// /
+	ldx #$03	// \
+	ldy #$07	// |
 ld421:
-	lda ($1d),y
-	sta $72,x
-	dey
-	dex
-	bpl ld421
-	lda $16
-	bne ld40d
+	lda ($1d),y	// | Copy Second Palette Data
+	sta $72,x	// | to Sprite Palette 2
+	dey			// | to PPU Temp Block
+	dex			// |
+	bpl ld421	// /
+	lda $16		// \ If Balloon Trip mode
+	bne ld40d	// / then stop and copy PPU Temp Block as is
 ld42d:
-	lda ($1d),y
-	sta $005a,y
-	dey
-	bpl ld42d
+	lda ($1d),y	// \ Copy First Palette Data
+	sta $005a,y	// | to Background Palette 1
+	dey			// | to PPU Temp Block
+	bpl ld42d	// /
 	bmi ld40d
 ld437:
     //35 bytes
@@ -2953,11 +2957,14 @@ ld45a:
     //16 bytes
 db $0f,$2a,$09,$07,$0f,$26,$06,$07,$0f,$1b,$0c,$07,$0f,$2c,$01
 db $06
+
 ld46a:
 db $74,$7c,$84,$84,$84
 ld46f:
-    //29 bytes
-db $d4,$d4,$d4,$d4,$d4,$0f,$02,$08,$06,$0f,$2b,$30,$12,$0f,$07
+db $d4,$d4,$d4,$d4,$d4
+
+ld474:
+db $0f,$02,$08,$06,$0f,$2b,$30,$12,$0f,$07
 db $0a,$19,$0f,$26,$30,$2b,$0f,$07,$0c,$1c,$0f,$15,$30,$26
 
 ld48c_nextplatformptr:

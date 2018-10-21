@@ -187,13 +187,13 @@ arch nes.cpu
 
 // $0487 = ???
 // $0488 = Balloon Trip Starting Platform X Position
-// $0489 = ???
-// $048A = ???
+// $0489 = Fish Y Direction (0 = Up, 1 = Down)
+// $048A = Fish Animation?
 // $048B = Fish Target ID (Object ID)
-// $048C = Fish?
-// $048D = Fish? (Time?)
-// $048E = Fish?
-// $048F = Fish?
+// $048C = Fish Target Eaten Flag
+// $048D = Fish Frame Time?
+// $048E = Fish? Unused?
+// $048F = Fish? Unused?
 
 // $0490-$04A3 = Lightning Bolt X Position (Int)
 // $04A4-$04B7 = Lightning Bolt Y Position (Int)
@@ -823,11 +823,11 @@ lc3a1:
 	jmp lf36a	// Put Game Over on Screen
 lc3b2:
 	jmp ($0025)
-lc3b5:
-    //10 bytes
+
+lc3b5:	// Screen Layout Subroutines
 dw lc3c9, lc3f7, lc43e, lc45f, lc45e
 
-lc3bf:
+lc3bf:	// Screen Layout Order
 db $00,$00,$02,$02,$02,$02,$02,$04,$03,$01
 
 lc3c9:
@@ -963,7 +963,7 @@ lc491:
 	sta $04a4,x	// /
 	rts
 
-lc4ad:
+lc4ad:	// Screen Premade Layout Data
 db $00,$00
 db $09,$00,$08,$8c,$00,$07,$18,$00,$18,$00,$19,$00,$1a,$00,$84
 db $94,$1a,$00,$1a,$00,$1a,$00,$0b,$12,$00,$0c,$13,$00,$0d,$14
@@ -1065,14 +1065,15 @@ lc5ae:
 	bpl lc5ae	// /
 	rts
 
-lc5b7:
-db $01,$02,$03,$03
-lc5bb:
-db $02,$01,$ff,$03,$04,$05,$06,$ff
 
 //----------------------
 // Fish code
 //----------------------
+
+lc5b7:	// Fish Animation 0
+db $01,$02,$03,$03
+lc5bb:	// Fish Animation 1
+db $02,$01,$ff,$03,$04,$05,$06,$ff
 
 lc5c3:
 	lda $048d
@@ -1080,48 +1081,47 @@ lc5c3:
 	lsr
 	lsr
 	tax
-	lda $048a
-	bne lc5d5
-	lda lc5b7,x
+	lda $048a	// \
+	bne lc5d5	// | If Fish Animation? == 0
+	lda lc5b7,x	// / set Fish Status
 	jmp lc5d8
 lc5d5:
-	lda lc5bb,x
+	lda lc5bb,x	// If Fish Animation? != 0
 lc5d8:
-	sta $87
+	sta $87		// Update Fish Status
 	ldx #$08
 	jsr le3a4
-	lda $048c
-	beq lc613
-	ldx $048b
-	lda $048d
-	cmp #$20
-	bne lc5f4
-	lda #$ff
-	sta $88,x
-	bmi lc610
+	lda $048c	// \ If Fish Target Eaten Flag
+	beq lc613	// / is set
+	ldx $048b	// X = Fish Target
+	lda $048d	// \
+	cmp #$20	// |
+	bne lc5f4	// | If Fish Frame Time == $20
+	lda #$ff	// | then target is eaten
+	sta $88,x	// | (Balloons = -1)
+	bmi lc610	// /
 lc5f4:
-	bcs lc613
-	lda $0450
-	bne lc602
-	lda $99
-	clc
-	adc #$04
+	bcs lc613	// If Fish Frame Time < $20
+	lda $0450	// \ Depending on Fish Direction
+	bne lc602	// /
+	lda $99		// \
+	clc			// | Move Fish 4 pixels to the right
+	adc #$04	// /
 	bne lc607
 lc602:
-	lda $99
-	sec
-	sbc #$04
+	lda $99		// \ or
+	sec			// | Move Fish 4 pixels to the left
+	sbc #$04	// /
 lc607:
 	sta $91,x
-	lda $a2
-	sec
-	sbc #$0a
-	sta $9a,x
+	lda $a2		// \
+	sec			// | Fish Target's Y position =
+	sbc #$0a	// | (Fish Y - $0A)
+	sta $9a,x	// /
 lc610:
 	jsr le3a4
 lc613:
 	rts
-//-----------------------
 
 lc614_fishsearchtarget:
 	lda #$ff	// \ Reset Target
@@ -1145,14 +1145,13 @@ lc62f:
 	lda $0448,x	// \ Update Fish Direction
 	sta $0450	// / with Target Object's Direction
 	lda #$00
-	sta $048a
-	sta $048d
-	sta $048c
-	sta $0489
-	lda #$dc	// \ Fish Y position is #$DC
+	sta $048a	// Reset Fish Animation?
+	sta $048d	// Reset Fish Frame Time
+	sta $048c	// Reset Fish Target Eaten Flag
+	sta $0489	// Reset Fish Y Direction to Up
+	lda #$dc	// \ Set Fish Y position to #$DC
 	sta $a2		// /
 	rts
-//-----------------------
 
 lc64b_fishmove:
 	inc $99		// Move Fish +1 pixel to the right
@@ -1166,52 +1165,52 @@ lc657:
 
 
 lc658:
-	lda $0489
-	bne lc66f
-	dec $a2
-	lda $a2
-	cmp #$c4
-	bcs lc671
-	inc $a2
-	inc $048a
-	inc $0489
-	bne lc671
+	lda $0489	// \ If Fish Y Direction == Up
+	bne lc66f	// /
+	dec $a2		// Fish Y goes up by 1 pixel
+	lda $a2		// \
+	cmp #$c4	// | If Fish Y Position is about
+	bcs lc671	// | to go above $C4
+	inc $a2		// | then
+	inc $048a	// | Set Fish Animation? to 1
+	inc $0489	// | and Fish Y Direction to down
+	bne lc671	// /
 lc66f:
-	inc $a2
+	inc $a2		// Fish Y goes down by 1 pixel
 lc671:
-	inc $048d
-	lda $048d
-	cmp #$18
-	bne lc6a3
-	ldx $048b
-	lda $88,x
-	bmi lc6a3
-	lda $9a,x
-	clc
-	adc #$10
-	cmp $a2
-	bcc lc6a3
-	ldy $0451,x
-	lda lc6b8,y
-	sta $0451,x
-	lda #0
-	sta $7f,x
-	sta $88,x
-	lda $f2
-	ora #$40
-	sta $f2
-	inc $048c
+	inc $048d	// Increase Fish Frame Time
+	lda $048d	// \
+	cmp #$18	// | If Fish Frame Time == $18
+	bne lc6a3	// /
+	ldx $048b	// \
+	lda $88,x	// | If Target exists...
+	bmi lc6a3	// / (has balloons)
+	lda $9a,x	// \
+	clc			// | If the target is above
+	adc #$10	// | the fish by 10 pixel
+	cmp $a2		// |
+	bcc lc6a3	// /
+	ldy $0451,x	// \
+	lda lc6b8,y	// | Change Target Object Type
+	sta $0451,x	// /
+	lda #$00	// \ Insta Kill
+	sta $7f,x	// | Target Object Status = 00
+	sta $88,x	// / Target Object Balloons == 0
+	lda $f2		// \
+	ora #$40	// | Play Fish Jingle
+	sta $f2		// /
+	inc $048c	// Set Fish Target Eaten Flag
 lc6a3:
-	lda $048a
-	beq lc6b7
-	lda $048d
-	cmp #$28
-	beq lc6b3
-	cmp #$30
-	bne lc6b7
+	lda $048a	// \ Fish Animation? != 0
+	beq lc6b7	// /
+	lda $048d	// \
+	cmp #$28	// | If Fish Frame Time? == $28
+	beq lc6b3	// / OR
+	cmp #$30	// \ If Fish Frame Time? == $30
+	bne lc6b7	// /
 lc6b3:
-	lda #$cc
-	sta $a2
+	lda #$cc	// \ then
+	sta $a2		// / Fish Y Position = $CC
 lc6b7:
 	rts
 
@@ -1220,26 +1219,26 @@ lc6b8:
 db $08,$09,$0a,$0b,$08,$09,$0a,$0b,$08,$09,$0a,$0b
 
 lc6c4:
-	lda $0489
-	bne lc6f8
+	lda $0489	// \ If Fish Direction is Up
+	bne lc6f8	// /
 	ldx $048b	//
 	lda $88,x	// \ Do Object X exist?
 	bmi lc6e0	// /
-	lda $9a,x	// \ Is Object X >= Y pos #$B4?
-	cmp #$b4	// | If so, continue checks
-	bcc lc6e0	// / Else ?
+	lda $9a,x	// \
+	cmp #$b4	// | Is Object X >= Y pos #$B4?
+	bcc lc6e0	// /
 	lda $91,x	// \
 	cmp #$40	// | Is Object X between
 	bcc lc6e0	// | X positions #$40 and #$B1?
 	cmp #$b1	// | If so, teleport fish
-	bcc lc6ee	// / Else ?
+	bcc lc6ee	// /
 lc6e0:
-	lda #$30	// \
-	sec			// |
-	sbc $048d	// | ?
-	sta $048d	// |
-	inc $0489	// |
-	bne lc6f8	// /
+	lda #$30	// \ Else
+	sec			// | Fish Frame Time? = $30 - itself
+	sbc $048d	// |
+	sta $048d	// /
+	inc $0489	// Set Fish Direction to Down
+	bne lc6f8
 lc6ee:
 	lda $91,x	// \ Teleport Fish
 	sta $99		// / to Object's X position
@@ -1247,7 +1246,6 @@ lc6ee:
 	sta $0450	// / to Object's Direction
 lc6f8:
 	rts
-//-----------------------
 
 lc6f9_fishmanage:
 	lda $87		// \ If Fish Status >= 0
@@ -1261,9 +1259,9 @@ lc709:
 	lda #$40	// \ Play Fish Eating SFX
 	sta $f3		// /
 lc70d:
-	jsr lc6c4	// Handle Fish Teleport
-	jsr lc658
-	jmp lc5c3
+	jsr lc6c4	// Handle Fish Teleport to Target
+	jsr lc658	// Handle Fish Target Eating
+	jmp lc5c3	// Handle Fish Target Eating Movement
 
 
 //----------------------
@@ -3717,7 +3715,8 @@ db $6c
 ldb3a:
     //372 bytes
 db $db,$db,$db,$db,$db,$db,$db,$db,$db,$dc,$db,$db,$db,$dc,$db
-db $db,$2b,$dc,$39,$dd,$00,$00,$10,$06,$ff,$ff,$96,$df,$02,$7a
+db $db
+db $2b,$dc,$39,$dd,$00,$00,$10,$06,$ff,$ff,$96,$df,$02,$7a
 db $de,$2b,$dc,$39,$dd,$4b,$dd,$00,$00,$18,$0c,$04,$0e,$ff,$ff
 db $a0,$df,$04,$86,$de,$ca,$dc,$00,$00,$ff,$ff,$b0,$df,$00,$9a
 db $de,$2b,$dc,$5e,$dd,$00,$00,$08,$06,$18,$0a,$ff,$ff,$b1,$df
@@ -3884,66 +3883,65 @@ le384:
 db $55,$5a,$61,$68,$6f,$76,$7d
 le38b:
 db $e3,$e3,$e3,$e3,$e3,$e3,$e3
+
 le392:
-    //9 bytes
 db $20,$38,$50,$68,$80,$98,$b0,$c8,$08
 le39b:
-    //9 bytes
 db $20,$38,$c8,$b0,$98,$80,$68,$50,$08
 
 le3a4:
-	lda le392,x
-	sta $1f
-	lda $19
-	lsr
-	bcc le3b3
-	lda le39b,x
-	sta $1f
+	lda le392,x	// \ Set Pointer from the first table
+	sta $1f		// /
+	lda $19		// \
+	lsr			// | Every 2 frames
+	bcc le3b3	// | Set Pointer from the second table
+	lda le39b,x	// |
+	sta $1f		// /
 le3b3:
-	lda #2
-	sta $20
-	lda $88,x
-	bpl le3cf
-	cmp #$ff
-	beq le3c2
+	lda #$02	// \ Set Pointer to $02xx
+	sta $20		// / (OAM)
+	lda $88,x	// \ If Object X Balloons >= 0
+	bpl le3cf	// /
+	cmp #$ff	// \ If Object X Balloons == -1
+	beq le3c2	// /
 	jmp le4d5
 le3c2:
-	ldy #$14
+	ldy #$14	// \
 le3c4:
-	lda #$f0
-	sta ($1f),y
-	dey
-	dey
-	dey
-	dey
-	bpl le3c4
+	lda #$f0	// |
+	sta ($1f),y	// |
+	dey			// | Hide 20 sprites
+	dey			// |
+	dey			// |
+	dey			// |
+	bpl le3c4	// /
 	rts
 le3cf:
-	cpx #8
-	beq le41b
-	lda $7f,x
-	asl
-	asl
-	adc $0436,x
-	cpx #2
-	bcs le408
-	ldy $88,x
-	adc le34c,y
-	tay
-	lda le24c,y
-	sta $1d
-	lda le298,y
-	sta $1e
-	lda $bd,x
-	beq le429
-	ldy $88,x
-	lda le34c+3,y
-	adc $0436,x
-	tay
-	lda le2e4,y
-	sta $1d
-	lda le2ec,y
-	sta $1e
+	cpx #$08	// \ If Object is Fish
+	beq le41b	// /
+	lda $7f,x	// \
+	asl			// | (Object Status * 4) + Animation Frame
+	asl			// |
+	adc $0436,x	// /
+	cpx #$02	// \ If Object is a player
+	bcs le408	// /
+	ldy $88,x	// \ 
+	adc le34c,y	// | Y = (Object Status * 4) + Animation Frame
+	tay			// / + [le34c + Balloons]
+	lda le24c,y	// \
+	sta $1d		// | Set pointer
+	lda le298,y	// |
+	sta $1e		// /
+	lda $bd,x	// \ If Player X is invincible
+	beq le429	// /
+	ldy $88,x	// Y = Player X Balloons
+	lda le34c+3,y	// \
+	adc $0436,x		// | Y = [le34c+3+Balloons+Frame]
+	tay				// /
+	lda le2e4,y	// \
+	sta $1d		// | Set pointer
+	lda le2ec,y	// |
+	sta $1e		// /
 	jmp le429
 le408:
 	ldy $88,x
@@ -6215,17 +6213,17 @@ lf4a2:
 
 lf4a5_initfish:
 	lda #$01
-	sta $048e
-	sta $048f
+	sta $048e	// \ Set Unused Variables?
+	sta $048f	// /
 	lda #$ff	// \ Reset Water Plonk Animation
 	sta $bb		// /
 	sta $87		// Fish Status = #$FF
-	sta $048c
+	sta $048c	// Fish Target Eaten Flag = #$FF
 	ldx #$01
 	stx $0459	// Fish Type = #$01
 	stx $90		// Fish Balloons = #$01
-	inx
-	stx $46
+	inx			// \ Update Status Bar
+	stx $46		// /
 	lda #$40	// \ Set Fish X position
 	sta $99		// / to #$40
 	rts
